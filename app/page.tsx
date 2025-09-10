@@ -892,7 +892,8 @@ export default function DjAfroMovies() {
                 className="relative h-32 rounded-lg overflow-hidden group cursor-pointer"
               >
                 <img
-                  src={`https://images.unsplash.com/photo-${1500000000000 + index}?w=300&h=200&fit=crop&crop=center`}
+                  src={`assets/images/image${index + 1}.jpg`}
+                  // src={`https://images.unsplash.com/photo-${1500000000000 + index}?w=300&h=200&fit=crop&crop=center`}
                   alt={category}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                 />
