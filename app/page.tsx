@@ -1,109 +1,184 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
-import { Play, Star, Download, Menu, X, Film, Users, Clock, Award, Smartphone, Eye, CheckCircle, ChevronRight, ChevronLeft, Volume2, Volume1, VolumeX } from 'lucide-react';
-import Image from 'next/image';
-import Link from 'next/link';
-import { useTheme } from '@/context/ThemeContext';
-import '@/styles/animations.scss';
+import { Play, Star, Download, Menu, X, Film, Users, Clock, Award, Smartphone, Eye, CheckCircle, 
+  ChevronRight, ChevronLeft, Volume2, VolumeX, Heart, Search, Bell, Plus, User } from 'lucide-react';
 
-// Mock movie data - replace with actual API calls
+// Movie data with proper image paths
 const featuredMovies = [
   {
     id: 1,
-    title: "DjAfro(Chase Full HD)",
-    description: "A washed-up private security agent, Danny Stratton, gets a shot at redemption when he's hired to escort a valuable Chinese antique out of Tibet.",
-    year: 2017,
-    rating: 7.4,
-    genre: ["Action", "Thriller"],
-    posterUrl: "https://images.unsplash.com/photo-1594908900066-3f47337549d8?w=600&h=900",
-    videoUrl: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+    title: "DjAfro-Logan",
+    description: "In the near future, a weary Logan cares for an ailing Professor X while hiding from the world. But when a young mutant with extraordinary powers is pursued by dark forces, Logan must face his past and unleash the Wolverine one last time in a brutal fight for survival and redemption.",
+    year: 2021,
+    rating: 8.2,
+    genre: ["Action", "Fantasy"],
+    posterUrl: "/assets/images/image1.jpg",
+    backdropUrl: "/assets/images/image1.jpg",
+    videoUrl: "https://kenya-access.b-cdn.net/Logan.2017.AF.%40Signor_Ent_Uploads.mp4"
   },
   {
     id: 2,
-    title: "DjAfro-Horror Movie",
-    description: "A spine-chilling horror experience that will keep you on the edge of your seat. Narrated by DJ Afro with his signature style.",
+    title: "DjAfro(Extraction)",
+    description: "A hardened mercenary's mission becomes a soul-searching race to survive when he's sent to rescue a kidnapped son.",
     year: 2020,
-    rating: 8.2,
-    genre: ["Horror", "Thriller"],
-    posterUrl: "https://images.unsplash.com/photo-1518709268805-4e9042af2176?w=600&h=900",
-    videoUrl: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+    rating: 7.6,
+    genre: ["Action", "Thriller"],
+    posterUrl: "/assets/images/image2.jpg",
+    backdropUrl: "/assets/images/image2.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
   },
   {
     id: 3,
-    title: "DjAfro-(Silent Scream)",
-    description: "A psychological thriller that explores the depths of human consciousness with DJ Afro's masterful narration.",
+    title: "DjAfro(Joker)",
+    description: "In Gotham City, mentally troubled comedian Arthur Fleck is disregarded and mistreated by society.",
     year: 2019,
-    rating: 7.8,
-    genre: ["Thriller", "Mystery"],
-    posterUrl: "https://images.unsplash.com/photo-1440404653325-ab127d49abc1?w=600&h=900",
-    videoUrl: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+    rating: 8.4,
+    genre: ["Crime", "Drama"],
+    posterUrl: "/assets/images/image3.jpg",
+    backdropUrl: "/assets/images/image3.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
   },
   {
     id: 4,
-    title: "DjAfro(Bang Bang)",
-    description: "High-octane action packed with intense sequences and DJ Afro's electrifying commentary.",
+    title: "DjAfro(Star Wars)",
+    description: "The surviving Resistance faces the First Order once more as Rey, Finn and Poe's journey continues.",
     year: 2021,
-    rating: 8.5,
-    genre: ["Action", "Adventure"],
-    posterUrl: "https://images.unsplash.com/photo-1489599112443-0182c70eb8f6?w=600&h=900",
-    videoUrl: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+    rating: 8.1,
+    genre: ["Action", "Sci-Fi"],
+    posterUrl: "/assets/images/image4.jpg",
+    backdropUrl: "/assets/images/image4.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
   },
   {
     id: 5,
-    title: "DjAfro-Comedy Gold",
-    description: "Laugh until you cry with this comedy masterpiece featuring DJ Afro's hilarious narration.",
+    title: "DjAfro(Avatar)",
+    description: "A paraplegic Marine dispatched to the moon Pandora on a unique mission becomes torn between following orders and protecting the world.",
     year: 2022,
-    rating: 7.9,
-    genre: ["Comedy", "Entertainment"],
-    posterUrl: "https://images.unsplash.com/photo-1533613220915-609f661a6fe1?w=600&h=900",
-    videoUrl: "https://sample-videos.com/zip/10/mp4/SampleVideo_1280x720_1mb.mp4"
+    rating: 8.7,
+    genre: ["Sci-Fi", "Adventure"],
+    posterUrl: "/assets/images/image5.jpg",
+    backdropUrl: "/assets/images/image5.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+  },
+  {
+    id: 6,
+    title: "DjAfro(Dune)",
+    description: "Feature adaptation of Frank Herbert's science fiction novel about the son of a noble family entrusted with the protection of the most valuable asset in the galaxy.",
+    year: 2021,
+    rating: 8.3,
+    genre: ["Sci-Fi", "Adventure"],
+    posterUrl: "/assets/images/image6.jpg",
+    backdropUrl: "/assets/images/image6.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
   }
 ];
 
-const heroWords = [
-  "Ultimate Cinema Experience",
-  "High Quality DJ Afro Movies",
-  "Cinematic Masterpieces",
-  "Premium Movie Collection",
-  "Unforgettable Entertainment"
+const trendingMovies = [
+  {
+    id: 7,
+    title: "DjAfro(Red Notice)",
+    description: "An Interpol agent tracks the world's most wanted art thief.",
+    year: 2021,
+    rating: 7.5,
+    genre: ["Action", "Comedy"],
+    posterUrl: "/assets/images/image7.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+  },
+  {
+    id: 8,
+    title: "DjAfro(No Time To Die)",
+    description: "James Bond has left active service. His peace is short-lived when an old friend from the CIA asks for help.",
+    year: 2021,
+    rating: 7.8,
+    genre: ["Action", "Thriller"],
+    posterUrl: "/assets/images/image8.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+  },
+  {
+    id: 9,
+    title: "DjAfro(Black Widow)",
+    description: "Natasha Romanoff confronts the darker parts of her ledger when a dangerous conspiracy with ties to her past arises.",
+    year: 2021,
+    rating: 7.2,
+    genre: ["Action", "Adventure"],
+    posterUrl: "/assets/images/image9.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+  },
+  {
+    id: 10,
+    title: "DjAfro(Shang-Chi)",
+    description: "Shang-Chi is drawn into the clandestine Ten Rings organization and must confront the past he thought he left behind.",
+    year: 2021,
+    rating: 7.9,
+    genre: ["Action", "Fantasy"],
+    posterUrl: "/assets/images/image10.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+  },
+  {
+    id: 11,
+    title: "DjAfro(Wonder Woman)",
+    description: "Diana must contend with a colleague, and with the secrets of her past.",
+    year: 2020,
+    rating: 7.3,
+    genre: ["Action", "Adventure"],
+    posterUrl: "/assets/images/image11.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+  },
+  {
+    id: 12,
+    title: "DjAfro(Fast & Furious)",
+    description: "Dom and his crew must take on an international terrorist who turns out to be Dom and Mia's estranged brother.",
+    year: 2021,
+    rating: 7.1,
+    genre: ["Action", "Crime"],
+    posterUrl: "/assets/images/image12.jpg",
+    videoUrl: "https://sample-videos.com/video123/mp4/720/big_buck_bunny_720p_1mb.mp4"
+  }
+];
+
+const categories = [
+  "Action", "Adventure", "Comedy", "Crime", "Drama", "Fantasy", "Horror", 
+  "Mystery", "Romance", "Sci-Fi", "Thriller", "Western"
 ];
 
 const testimonials = [
   {
-    name: "Movie Lover",
-    comment: "DJ Afro's narration takes movies to a whole new level. I can't watch movies any other way now!",
+    name: "Movie Enthusiast",
+    comment: "DJ Afro's narration brings movies to life like nothing else. The streaming quality is amazing!",
     rating: 5,
-    avatar: "https://i.pravatar.cc/150?img=1"
+    avatar: "https://images.unsplash.com/photo-1507003211169-0a1dd7228f2d?w=100&h=100&fit=crop&crop=face"
   },
   {
-    name: "Cinema Fan",
-    comment: "The video quality is fantastic and the mobile app works flawlessly. Best streaming service for DJ Afro content.",
+    name: "Film Buff",
+    comment: "This is hands down the best platform for watching DJ Afro movies. The mobile app is a game-changer.",
     rating: 5,
-    avatar: "https://i.pravatar.cc/150?img=2"
+    avatar: "https://images.unsplash.com/photo-1494790108755-2616b612b97c?w=100&h=100&fit=crop&crop=face"
   },
   {
-    name: "Regular User",
-    comment: "I've tried many platforms but this is by far the best for DJ Afro movies. Great selection and user experience.",
+    name: "Casual Viewer",
+    comment: "I've tried many streaming services, but this one offers the best value and entertainment experience.",
     rating: 4,
-    avatar: "https://i.pravatar.cc/150?img=3"
+    avatar: "https://images.unsplash.com/photo-1472099645785-5658abf4ff4e?w=100&h=100&fit=crop&crop=face"
   }
 ];
 
-export default function DjAfroLandingPage() {
-  const { colors } = useTheme();
+export default function DjAfroMovies() {
   const [currentMovieIndex, setCurrentMovieIndex] = useState(0);
-  const [currentWordIndex, setCurrentWordIndex] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
   const [showSignupModal, setShowSignupModal] = useState(false);
-  const [watchedMovies, setWatchedMovies] = useState(0);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
   const [videoMuted, setVideoMuted] = useState(true);
   const [visibleSection, setVisibleSection] = useState('hero');
+  const [showGenreDropdown, setShowGenreDropdown] = useState(false);
+  const [isSearchActive, setIsSearchActive] = useState(false);
+  const [featuredScrollIndex, setFeaturedScrollIndex] = useState(0);
+  const [trendingScrollIndex, setTrendingScrollIndex] = useState(0);
   
   const videoRef = useRef<HTMLVideoElement>(null);
+  const searchInputRef = useRef<HTMLInputElement>(null);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({
     hero: null,
     movies: null,
@@ -111,11 +186,28 @@ export default function DjAfroLandingPage() {
     app: null,
   });
 
-  // Rotate hero content
+  // Rotate hero content (stop when video is playing)
   useEffect(() => {
+    if (isVideoPlaying) return;
+    
     const interval = setInterval(() => {
       setCurrentMovieIndex((prev) => (prev + 1) % featuredMovies.length);
-      setCurrentWordIndex((prev) => (prev + 1) % heroWords.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [isVideoPlaying]);
+
+  // Auto-scroll featured movies
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setFeaturedScrollIndex((prev) => (prev + 1) % featuredMovies.length);
+    }, 4000);
+    return () => clearInterval(interval);
+  }, []);
+
+  // Auto-scroll trending movies
+  useEffect(() => {
+    const interval = setInterval(() => {
+      setTrendingScrollIndex((prev) => (prev + 1) % trendingMovies.length);
     }, 5000);
     return () => clearInterval(interval);
   }, []);
@@ -133,8 +225,7 @@ export default function DjAfroLandingPage() {
     const handleScroll = () => {
       setIsScrolled(window.scrollY > 20);
       
-      // Find which section is currently visible
-      const scrollPosition = window.scrollY + 100; // offset
+      const scrollPosition = window.scrollY + 100;
       
       let currentSection = 'hero';
       Object.entries(sectionsRef.current).forEach(([section, element]) => {
@@ -153,27 +244,21 @@ export default function DjAfroLandingPage() {
     return () => window.removeEventListener('scroll', handleScroll);
   }, []);
 
+  // Focus search input when search is activated
+  useEffect(() => {
+    if (isSearchActive && searchInputRef.current) {
+      searchInputRef.current.focus();
+    }
+  }, [isSearchActive]);
+
   const currentMovie = featuredMovies[currentMovieIndex];
 
   const handleWatchMovie = () => {
-    if (watchedMovies >= 2) {
-      setShowSignupModal(true);
-    } else {
-      setWatchedMovies(prev => prev + 1);
-      setIsVideoPlaying(true);
-      
-      // Control video playback
-      if (videoRef.current) {
-        videoRef.current.play();
-      }
-    }
+    setShowSignupModal(true);
   };
 
   const handleVideoEnd = () => {
     setIsVideoPlaying(false);
-    if (watchedMovies >= 2) {
-      setShowSignupModal(true);
-    }
   };
 
   const handleToggleMute = () => {
@@ -187,9 +272,87 @@ export default function DjAfroLandingPage() {
     sectionsRef.current[id] = el;
   };
 
+  const handleSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSearchActive(false);
+  };
+
+  const handleSignup = (e: React.FormEvent) => {
+    e.preventDefault();
+    setShowSignupModal(false);
+    setIsVideoPlaying(true);
+    
+    if (videoRef.current) {
+      videoRef.current.play();
+    }
+  };
+
+  const scrollFeatured = (direction: 'left' | 'right') => {
+    if (direction === 'left') {
+      setFeaturedScrollIndex((prev) => prev === 0 ? featuredMovies.length - 1 : prev - 1);
+    } else {
+      setFeaturedScrollIndex((prev) => (prev + 1) % featuredMovies.length);
+    }
+  };
+
+  const scrollTrending = (direction: 'left' | 'right') => {
+    if (direction === 'left') {
+      setTrendingScrollIndex((prev) => prev === 0 ? trendingMovies.length - 1 : prev - 1);
+    } else {
+      setTrendingScrollIndex((prev) => (prev + 1) % trendingMovies.length);
+    }
+  };
+
+  // Video Player Component
+  const VideoPlayer = () => (
+    <div className="fixed inset-0 bg-black z-50 flex flex-col">
+      <div className="absolute top-4 right-4 z-10 flex gap-4">
+        <button 
+          onClick={handleToggleMute}
+          className="bg-black/50 backdrop-blur-sm p-2 rounded-full hover:bg-black/70 transition-all"
+          aria-label={videoMuted ? "Unmute" : "Mute"}
+        >
+          {videoMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
+        </button>
+        <button 
+          onClick={() => setIsVideoPlaying(false)}
+          className="bg-black/50 backdrop-blur-sm p-2 rounded-full hover:bg-black/70 transition-all"
+          aria-label="Close video"
+        >
+          <X size={24} />
+        </button>
+      </div>
+      
+      <video
+        ref={videoRef}
+        className="w-full h-full object-contain"
+        src={currentMovie.videoUrl}
+        autoPlay
+        muted={videoMuted}
+        controls
+        onEnded={handleVideoEnd}
+      />
+      
+      <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
+        <h3 className="text-xl font-bold">{currentMovie.title}</h3>
+        <div className="flex items-center space-x-2 mt-1">
+          <div className="flex items-center space-x-1">
+            <Star size={16} className="text-yellow-500" fill="currentColor" />
+            <span>{currentMovie.rating}</span>
+          </div>
+          <span>•</span>
+          <span>{currentMovie.year}</span>
+          <span>•</span>
+          <span>{currentMovie.genre.join(', ')}</span>
+        </div>
+      </div>
+    </div>
+  );
+
+  // Signup Modal Component
   const SignupModal = () => (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4 animate-fade-in-up">
-      <div className="bg-gradient-to-br from-gray-900 to-black border border-green-500/30 rounded-2xl p-8 max-w-md w-full relative">
+    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
+      <div className="bg-gradient-to-br from-gray-900 to-black border border-red-500/30 rounded-2xl p-8 max-w-md w-full relative animate-scale-in">
         <button
           onClick={() => setShowSignupModal(false)}
           className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
@@ -199,37 +362,43 @@ export default function DjAfroLandingPage() {
         </button>
         
         <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-r from-green-400 to-green-600 rounded-full mx-auto mb-4 flex items-center justify-center">
+          <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full mx-auto mb-4 flex items-center justify-center">
             <Film className="text-white" size={32} />
           </div>
-          <h3 className="text-2xl font-bold text-white mb-2">Sign Up Today!</h3>
-          <p className="text-gray-300">Enjoy unlimited high-quality DJ Afro movies</p>
+          <h3 className="text-2xl font-bold text-white mb-2">Sign Up to Watch</h3>
+          <p className="text-gray-300">Create your account to enjoy unlimited DJ Afro movies</p>
         </div>
 
-        <form className="space-y-4">
+        <form onSubmit={handleSignup} className="space-y-4">
+          <input
+            type="text"
+            placeholder="Username"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
+            required
+          />
           <input
             type="email"
-            placeholder="Enter your email"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none transition-colors"
+            placeholder="Email"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
             required
           />
           <input
             type="password"
-            placeholder="Create password"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-green-500 focus:outline-none transition-colors"
+            placeholder="Password"
+            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
             required
           />
           <button
             type="submit"
-            className="w-full bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-green-500/25"
+            className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-red-500/25"
           >
-            Start Watching Now
+            Sign Up & Watch Now
           </button>
         </form>
 
         <div className="mt-6 text-center">
           <p className="text-gray-400 text-sm">Already have an account?</p>
-          <button className="text-green-400 hover:text-green-300 font-semibold transition-colors">
+          <button className="text-red-400 hover:text-red-300 font-semibold transition-colors">
             Sign In
           </button>
         </div>
@@ -237,153 +406,221 @@ export default function DjAfroLandingPage() {
     </div>
   );
 
-  return (
-    <div className="min-h-screen bg-black text-white overflow-x-hidden">
-      {/* Video Player Overlay */}
-      {isVideoPlaying && (
-        <div className="fixed inset-0 bg-black z-50 flex flex-col">
-          <div className="absolute top-4 right-4 z-10 flex gap-4">
-            <button 
-              onClick={handleToggleMute}
-              className="bg-black/50 backdrop-blur-sm p-2 rounded-full hover:bg-black/70 transition-all"
-              aria-label={videoMuted ? "Unmute" : "Mute"}
-            >
-              {videoMuted ? <VolumeX size={24} /> : <Volume2 size={24} />}
-            </button>
-            <button 
-              onClick={() => setIsVideoPlaying(false)}
-              className="bg-black/50 backdrop-blur-sm p-2 rounded-full hover:bg-black/70 transition-all"
-              aria-label="Close video"
-            >
-              <X size={24} />
-            </button>
+  // Search Overlay Component
+  const SearchOverlay = () => (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-40">
+      <div className="container mx-auto px-6 py-4">
+        <div className="flex justify-between items-center mb-8">
+          <h2 className="text-2xl font-bold">Search</h2>
+          <button
+            onClick={() => setIsSearchActive(false)}
+            className="text-gray-400 hover:text-white transition-colors"
+            aria-label="Close search"
+          >
+            <X size={24} />
+          </button>
+        </div>
+        
+        <form onSubmit={handleSearch} className="mb-8">
+          <div className="relative">
+            <input
+              ref={searchInputRef}
+              type="text"
+              placeholder="Search for movies, genres, etc."
+              className="w-full bg-gray-800 border-none rounded-full py-4 pl-12 pr-4 text-white focus:ring-2 focus:ring-red-500 focus:outline-none"
+            />
+            <Search className="absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400" size={20} />
           </div>
-          
-          <video
-            ref={videoRef}
-            className="w-full h-full object-contain"
-            src={currentMovie.videoUrl}
-            autoPlay
-            muted={videoMuted}
-            controls
-            onEnded={handleVideoEnd}
-          />
-          
-          <div className="absolute bottom-0 left-0 right-0 bg-gradient-to-t from-black/80 to-transparent p-4">
-            <h3 className="text-xl font-bold">{currentMovie.title}</h3>
-            <div className="flex items-center space-x-2 mt-1">
-              <div className="flex items-center space-x-1">
-                <Star size={16} className="text-yellow-500" fill="currentColor" />
-                <span>{currentMovie.rating}</span>
-              </div>
-              <span>•</span>
-              <span>{currentMovie.year}</span>
-              <span>•</span>
-              <span>{currentMovie.genre.join(', ')}</span>
-            </div>
+        </form>
+        
+        <div className="mb-8">
+          <h3 className="text-lg font-semibold mb-4">Popular Searches</h3>
+          <div className="flex flex-wrap gap-2">
+            {["Action", "Comedy", "DJ Afro Classics", "New Releases", "Thriller"].map((term) => (
+              <button
+                key={term}
+                className="bg-gray-800 hover:bg-gray-700 px-4 py-2 rounded-full text-sm transition-colors"
+              >
+                {term}
+              </button>
+            ))}
           </div>
         </div>
-      )}
+      </div>
+    </div>
+  );
+
+  return (
+    <div className="min-h-screen bg-[#141414] text-white overflow-x-hidden">
+      {/* Custom Styles */}
+      <style jsx>{`
+        @keyframes scale-in {
+          from {
+            opacity: 0;
+            transform: scale(0.9);
+          }
+          to {
+            opacity: 1;
+            transform: scale(1);
+          }
+        }
+        
+        .animate-scale-in {
+          animation: scale-in 0.3s ease-out;
+        }
+        
+        .scrollbar-hide {
+          -ms-overflow-style: none;
+          scrollbar-width: none;
+        }
+        
+        .scrollbar-hide::-webkit-scrollbar {
+          display: none;
+        }
+      `}</style>
+
+      {/* Video Player */}
+      {isVideoPlaying && <VideoPlayer />}
 
       {/* Signup Modal */}
       {showSignupModal && <SignupModal />}
+      
+      {/* Search Overlay */}
+      {isSearchActive && <SearchOverlay />}
 
       {/* Navigation */}
-      <nav className={`fixed top-0 w-full z-40 transition-all duration-300 ${isScrolled ? 'bg-black/90 backdrop-blur-md shadow-md' : 'bg-transparent'}`}>
+      <nav className={`fixed top-0 w-full z-40 transition-all duration-300 ${isScrolled ? 'bg-black/90 backdrop-blur-md' : 'bg-gradient-to-b from-black/80 to-transparent'}`}>
         <div className="container mx-auto px-6 py-4">
           <div className="flex items-center justify-between">
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-lg flex items-center justify-center">
-                <Film className="text-white" size={24} />
+            <div className="flex items-center space-x-8">
+              <div className="flex items-center space-x-2">
+                <div className="w-10 h-10 bg-red-600 rounded flex items-center justify-center">
+                  <Film className="text-white" size={24} />
+                </div>
+                <span className="text-2xl font-bold text-white">
+                  DJ Afro Movies
+                </span>
               </div>
-              <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">
-                DJ Afro Movies
-              </span>
+
+              {/* Desktop Navigation */}
+              <div className="hidden md:flex items-center space-x-6">
+                <a 
+                  href="#home" 
+                  className={`hover:text-red-500 transition-colors text-sm ${visibleSection === 'hero' ? 'text-white font-medium' : 'text-gray-300'}`}
+                >
+                  Home
+                </a>
+                <a 
+                  href="#movies" 
+                  className={`hover:text-red-500 transition-colors text-sm ${visibleSection === 'movies' ? 'text-white font-medium' : 'text-gray-300'}`}
+                >
+                  Movies
+                </a>
+                <div className="relative">
+                  <button
+                    className="hover:text-red-500 transition-colors text-sm text-gray-300 flex items-center space-x-1"
+                    onClick={() => setShowGenreDropdown(!showGenreDropdown)}
+                  >
+                    <span>Genres</span>
+                    <ChevronRight size={16} className={`transform transition-transform duration-200 ${showGenreDropdown ? 'rotate-90' : ''}`} />
+                  </button>
+                  
+                  {showGenreDropdown && (
+                    <div className="absolute top-full left-0 mt-2 bg-gray-900 border border-gray-800 rounded-lg shadow-xl p-2 w-48 z-50">
+                      <div className="grid grid-cols-2 gap-1">
+                        {categories.slice(0, 12).map((category) => (
+                          <a 
+                            key={category}
+                            href={`#${category.toLowerCase()}`}
+                            className="px-3 py-2 hover:bg-gray-800 rounded text-sm whitespace-nowrap transition-colors"
+                            onClick={() => setShowGenreDropdown(false)}
+                          >
+                            {category}
+                          </a>
+                        ))}
+                      </div>
+                    </div>
+                  )}
+                </div>
+                <a 
+                  href="#features" 
+                  className={`hover:text-red-500 transition-colors text-sm ${visibleSection === 'features' ? 'text-white font-medium' : 'text-gray-300'}`}
+                >
+                  Features
+                </a>
+                <a 
+                  href="#app" 
+                  className={`hover:text-red-500 transition-colors text-sm ${visibleSection === 'app' ? 'text-white font-medium' : 'text-gray-300'}`}
+                >
+                  Mobile App
+                </a>
+              </div>
             </div>
 
-            {/* Desktop Navigation */}
-            <div className="hidden md:flex items-center space-x-8">
-              <a 
-                href="#home" 
-                className={`hover:text-green-400 transition-colors ${visibleSection === 'hero' ? 'text-green-400' : 'text-white'}`}
+            <div className="flex items-center space-x-4">
+              <button 
+                className="text-gray-300 hover:text-white p-1 transition-colors"
+                onClick={() => setIsSearchActive(true)}
+                aria-label="Search"
               >
-                Home
-              </a>
-              <a 
-                href="#movies" 
-                className={`hover:text-green-400 transition-colors ${visibleSection === 'movies' ? 'text-green-400' : 'text-white'}`}
-              >
-                Movies
-              </a>
-              <a 
-                href="#features" 
-                className={`hover:text-green-400 transition-colors ${visibleSection === 'features' ? 'text-green-400' : 'text-white'}`}
-              >
-                Features
-              </a>
-              <a 
-                href="#app" 
-                className={`hover:text-green-400 transition-colors ${visibleSection === 'app' ? 'text-green-400' : 'text-white'}`}
-              >
-                Mobile App
-              </a>
-            </div>
-
-            <div className="hidden md:flex items-center space-x-4">
-              <button className="text-gray-300 hover:text-white px-4 py-2 rounded-lg transition-colors">
-                Login
+                <Search size={20} />
               </button>
-              <button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-6 py-2 rounded-lg font-semibold transition-all duration-300">
-                Sign Up
+              
+              <button className="text-gray-300 hover:text-white p-1 transition-colors hidden md:block" aria-label="Notifications">
+                <Bell size={20} />
+              </button>
+              
+              <div className="hidden md:flex items-center space-x-2">
+                <button className="bg-transparent border border-gray-700 hover:border-white px-4 py-1 rounded text-sm transition-colors">
+                  Sign In
+                </button>
+                <button 
+                  onClick={() => setShowSignupModal(true)}
+                  className="bg-red-600 hover:bg-red-700 px-4 py-1 rounded text-sm transition-colors"
+                >
+                  Sign Up
+                </button>
+              </div>
+
+              {/* Mobile Menu Button */}
+              <button
+                className="md:hidden p-1"
+                onClick={() => setIsMenuOpen(!isMenuOpen)}
+                aria-label={isMenuOpen ? "Close menu" : "Open menu"}
+              >
+                {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
               </button>
             </div>
-
-            {/* Mobile Menu Button */}
-            <button
-              className="md:hidden"
-              onClick={() => setIsMenuOpen(!isMenuOpen)}
-              aria-label={isMenuOpen ? "Close menu" : "Open menu"}
-            >
-              {isMenuOpen ? <X size={24} /> : <Menu size={24} />}
-            </button>
           </div>
         </div>
 
         {/* Mobile Menu */}
         {isMenuOpen && (
-          <div className="md:hidden bg-gray-900 border-t border-gray-800 animate-fade-in-up">
-            <div className="container mx-auto px-6 py-4 space-y-4">
+          <div className="md:hidden bg-black">
+            <div className="container mx-auto px-6 py-4 space-y-3">
               <a 
                 href="#home" 
-                className={`block hover:text-green-400 transition-colors ${visibleSection === 'hero' ? 'text-green-400' : 'text-white'}`}
+                className={`block py-2 ${visibleSection === 'hero' ? 'text-red-500' : 'text-white'}`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Home
               </a>
               <a 
                 href="#movies" 
-                className={`block hover:text-green-400 transition-colors ${visibleSection === 'movies' ? 'text-green-400' : 'text-white'}`}
+                className={`block py-2 ${visibleSection === 'movies' ? 'text-red-500' : 'text-white'}`}
                 onClick={() => setIsMenuOpen(false)}
               >
                 Movies
               </a>
-              <a 
-                href="#features" 
-                className={`block hover:text-green-400 transition-colors ${visibleSection === 'features' ? 'text-green-400' : 'text-white'}`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Features
-              </a>
-              <a 
-                href="#app" 
-                className={`block hover:text-green-400 transition-colors ${visibleSection === 'app' ? 'text-green-400' : 'text-white'}`}
-                onClick={() => setIsMenuOpen(false)}
-              >
-                Mobile App
-              </a>
-              <div className="pt-4 border-t border-gray-700 space-y-2">
-                <button className="block w-full text-left hover:text-green-400 transition-colors">Login</button>
-                <button className="block w-full bg-gradient-to-r from-green-500 to-green-600 text-center py-2 rounded-lg font-semibold">
+              <div className="pt-4 border-t border-gray-800 space-y-2">
+                <button className="block w-full text-left py-2">Sign In</button>
+                <button 
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    setShowSignupModal(true);
+                  }}
+                  className="block w-full bg-red-600 text-center py-2 rounded font-semibold"
+                >
                   Sign Up
                 </button>
               </div>
@@ -395,123 +632,73 @@ export default function DjAfroLandingPage() {
       {/* Hero Section */}
       <section 
         id="home" 
-        className="relative min-h-screen flex items-center justify-center overflow-hidden pt-20"
+        className="relative min-h-screen flex items-end pb-20 overflow-hidden"
         ref={assignSectionRef('hero')}
       >
         {/* Background Image with Overlay */}
-        <div className="absolute inset-0 z-0 animate-hero-image">
+        <div className="absolute inset-0 z-0">
           <div className="relative w-full h-full">
-            <img
-              src={currentMovie.posterUrl}
-              alt="Movie background"
-              className="w-full h-full object-cover transition-all duration-1000 ease-in-out"
+            <img 
+              src={currentMovie.backdropUrl}
+              alt={currentMovie.title}
+              className="absolute inset-0 w-full h-full object-cover transition-opacity duration-1000 ease-in-out"
             />
-            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/80 to-transparent"></div>
-            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/70 to-black/50"></div>
+            <div className="absolute inset-0 bg-gradient-to-r from-black via-black/60 to-transparent"></div>
+            <div className="absolute inset-0 bg-gradient-to-t from-black via-black/80 to-transparent"></div>
           </div>
         </div>
 
         {/* Hero Content */}
-        <div className="relative z-10 container mx-auto px-6 grid lg:grid-cols-2 gap-12 items-center">
-          <div className="space-y-8 animate-hero-slide">
+        <div className="relative z-10 container mx-auto px-6 pt-32">
+          <div className="max-w-2xl">
             <div className="space-y-4">
-              <h1 className="text-5xl lg:text-7xl font-bold leading-tight">
-                <span className="block text-white">Welcome to</span>
-                <span className="block bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent animate-glow">
-                  DJ Afro Movies
-                </span>
+              <h1 className="text-5xl md:text-7xl font-bold leading-tight">
+                {currentMovie.title}
               </h1>
               
-              <div className="text-2xl lg:text-3xl font-semibold text-gray-300 h-16 flex items-center">
-                <span className="animate-typewriter overflow-hidden border-r-2 border-green-400 whitespace-nowrap">
-                  {heroWords[currentWordIndex]}
-                </span>
+              <div className="flex items-center space-x-4 text-sm">
+                <div className="flex items-center">
+                  <Star className="text-yellow-500 mr-1" size={16} fill="currentColor" />
+                  <span>{currentMovie.rating}/10</span>
+                </div>
+                <span>{currentMovie.year}</span>
+                <div className="hidden md:flex items-center space-x-2">
+                  {currentMovie.genre.map((g, idx) => (
+                    <span 
+                      key={idx} 
+                      className="border border-gray-400 px-2 py-1 rounded text-xs"
+                    >
+                      {g}
+                    </span>
+                  ))}
+                </div>
               </div>
               
-              <p className="text-xl text-gray-300 max-w-xl leading-relaxed">
-                Experience cinema like never before with DJ Afro's unique narration and high-quality movie collection. 
-                Start your journey with <span className="text-green-400 font-semibold">2 free movies</span> today!
+              <p className="text-lg text-gray-300 max-w-xl leading-relaxed line-clamp-3 md:line-clamp-none">
+                {currentMovie.description}
               </p>
             </div>
 
-            <div className="flex flex-col sm:flex-row gap-4">
+            <div className="flex flex-wrap gap-4 mt-8">
               <button 
                 onClick={handleWatchMovie}
-                className="group bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/30 hover:scale-105 flex items-center justify-center space-x-3 hover-button-press"
+                className="bg-red-600 hover:bg-red-700 px-8 py-3 rounded-md font-semibold text-lg transition-all duration-300 flex items-center space-x-3"
               >
-                <Play className="group-hover:scale-110 transition-transform" size={24} />
-                <span>Watch Free Movies ({2 - watchedMovies} left)</span>
+                <Play fill="white" size={24} />
+                <span>Play Now</span>
               </button>
               
-              <button className="border-2 border-green-500 hover:bg-green-500/10 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:shadow-xl hover:shadow-green-500/20 hover-button-press">
-                Learn More
+              <button className="bg-gray-800/80 hover:bg-gray-700 px-8 py-3 rounded-md font-semibold text-lg transition-all duration-300 flex items-center space-x-3">
+                <Plus size={24} />
+                <span>My List</span>
               </button>
             </div>
-
-            {/* Stats */}
-            <div className="flex flex-wrap gap-8 pt-8">
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-400">500+</div>
-                <div className="text-gray-400">Movies</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-400">50K+</div>
-                <div className="text-gray-400">Users</div>
-              </div>
-              <div className="text-center">
-                <div className="text-3xl font-bold text-green-400">4.9★</div>
-                <div className="text-gray-400">Rating</div>
-              </div>
+            
+            <div className="mt-6 text-sm text-gray-400">
+              <p>
+                <span className="text-red-500 font-medium">Sign up now</span> to watch unlimited premium DJ Afro movies.
+              </p>
             </div>
-          </div>
-
-          {/* Featured Movie Card */}
-          <div className="hidden lg:block animate-fade-in-right">
-            <div className="relative group hover-card">
-              <div className="bg-gradient-to-br from-gray-900 to-black border border-green-500/30 rounded-2xl p-6 hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-500">
-                <div className="relative overflow-hidden rounded-xl mb-4">
-                  <img
-                    src={currentMovie.posterUrl}
-                    alt={currentMovie.title}
-                    className="w-full h-80 object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/60 to-transparent"></div>
-                  <div className="absolute top-4 right-4 bg-yellow-500 text-black px-2 py-1 rounded-lg font-semibold flex items-center space-x-1">
-                    <Star size={16} fill="currentColor" />
-                    <span>{currentMovie.rating}</span>
-                  </div>
-                  <button
-                    onClick={handleWatchMovie}
-                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                  >
-                    <div className="play-button bg-green-500 hover:bg-green-600 p-4 rounded-full transition-transform">
-                      <Play size={32} fill="white" />
-                    </div>
-                  </button>
-                </div>
-                
-                <h3 className="text-2xl font-bold mb-2">{currentMovie.title}</h3>
-                <p className="text-gray-300 mb-4 line-clamp-3">{currentMovie.description}</p>
-                
-                <div className="flex items-center justify-between">
-                  <div className="flex flex-wrap gap-2">
-                    {currentMovie.genre.map((g, i) => (
-                      <span key={i} className="bg-gray-800 px-3 py-1 rounded-full text-sm">
-                        {g}
-                      </span>
-                    ))}
-                  </div>
-                  <span className="text-gray-400">{currentMovie.year}</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Scroll Indicator */}
-        <div className="absolute bottom-8 left-1/2 transform -translate-x-1/2 animate-bounce">
-          <div className="w-6 h-10 border-2 border-gray-400 rounded-full flex justify-center">
-            <div className="w-1 h-3 bg-gray-400 rounded-full mt-2 animate-pulse"></div>
           </div>
         </div>
       </section>
@@ -519,103 +706,304 @@ export default function DjAfroLandingPage() {
       {/* Featured Movies Section */}
       <section 
         id="movies" 
-        className="py-20 bg-gradient-to-b from-black to-gray-900"
+        className="py-16 bg-[#141414]"
         ref={assignSectionRef('movies')}
       >
         <div className="container mx-auto px-6">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">
-                Featured Movies
-              </span>
+          <div className="flex justify-between items-center mb-8">
+            <h2 className="text-2xl font-bold flex items-center">
+              <span>Featured Movies</span>
+              <ChevronRight size={24} className="text-red-500 ml-2" />
             </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Discover our handpicked collection of DJ Afro movies, each offering a unique cinematic experience with premium quality.
-            </p>
+            <div className="flex space-x-2">
+              <button
+                onClick={() => scrollFeatured('left')}
+                className="bg-gray-800/50 hover:bg-gray-800 p-2 rounded-full transition-colors"
+                aria-label="Previous featured movies"
+              >
+                <ChevronLeft size={20} />
+              </button>
+              <button
+                onClick={() => scrollFeatured('right')}
+                className="bg-gray-800/50 hover:bg-gray-800 p-2 rounded-full transition-colors"
+                aria-label="Next featured movies"
+              >
+                <ChevronRight size={20} />
+              </button>
+            </div>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5 gap-6 stagger-children">
-            {featuredMovies.map((movie, index) => (
-              <div
-                key={movie.id}
-                className="group bg-gradient-to-br from-gray-900 to-black border border-gray-800 rounded-xl overflow-hidden hover:border-green-500/50 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/20 hover-card"
+          <div className="relative overflow-hidden">
+            <div 
+              className="flex transition-transform duration-500 ease-in-out"
+              style={{ transform: `translateX(-${featuredScrollIndex * 33.333}%)` }}
+            >
+              {featuredMovies.map((movie) => (
+                <div
+                  key={movie.id}
+                  className="flex-none w-1/3 px-2"
+                >
+                  <div className="relative rounded-md overflow-hidden group">
+                    <img
+                      src={movie.posterUrl}
+                      alt={movie.title}
+                      className="w-full h-96 object-cover transition-transform duration-700 group-hover:scale-110"
+                    />
+                    <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+                      <div className="p-4 w-full">
+                        <div className="flex justify-between items-center mb-2">
+                          <button 
+                            onClick={handleWatchMovie}
+                            className="bg-red-600 hover:bg-red-700 p-2 rounded-full transition-transform transform group-hover:scale-110"
+                          >
+                            <Play fill="white" size={20} />
+                          </button>
+                          <div className="flex space-x-2">
+                            <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                              <Plus size={18} />
+                            </button>
+                            <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                              <Heart size={18} />
+                            </button>
+                          </div>
+                        </div>
+                        
+                        <div className="flex items-center justify-between text-sm mb-1">
+                          <span className="text-green-500 font-medium">New</span>
+                          <span className="text-gray-400">{movie.year}</span>
+                        </div>
+                        
+                        <h3 className="font-medium line-clamp-1">{movie.title}</h3>
+                        
+                        <div className="flex items-center space-x-2 mt-1 text-xs text-gray-400">
+                          <div className="flex items-center">
+                            <Star className="text-yellow-500 mr-1" size={12} fill="currentColor" />
+                            <span>{movie.rating}</span>
+                          </div>
+                          <span>•</span>
+                          <span>{movie.genre.join(', ')}</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          {/* Trending Movies */}
+          <div className="mt-16">
+            <div className="flex justify-between items-center mb-8">
+              <h2 className="text-2xl font-bold flex items-center">
+                <span>Trending Now</span>
+                <ChevronRight size={24} className="text-red-500 ml-2" />
+              </h2>
+              <div className="flex space-x-2">
+                <button
+                  onClick={() => scrollTrending('left')}
+                  className="bg-gray-800/50 hover:bg-gray-800 p-2 rounded-full transition-colors"
+                  aria-label="Previous trending movies"
+                >
+                  <ChevronLeft size={20} />
+                </button>
+                <button
+                  onClick={() => scrollTrending('right')}
+                  className="bg-gray-800/50 hover:bg-gray-800 p-2 rounded-full transition-colors"
+                  aria-label="Next trending movies"
+                >
+                  <ChevronRight size={20} />
+                </button>
+              </div>
+            </div>
+
+            <div className="relative overflow-hidden">
+              <div 
+                className="flex transition-transform duration-500 ease-in-out"
+                style={{ transform: `translateX(-${trendingScrollIndex * 33.333}%)` }}
               >
-                <div className="relative overflow-hidden">
-                  <img
-                    src={movie.posterUrl}
-                    alt={movie.title}
-                    className="w-full h-64 object-cover transition-transform duration-500 group-hover:scale-110"
-                  />
-                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300"></div>
-                  <div className="absolute top-4 right-4 bg-yellow-500 text-black px-2 py-1 rounded-lg font-semibold text-sm flex items-center space-x-1">
-                    <Star size={14} fill="currentColor" />
-                    <span>{movie.rating}</span>
-                  </div>
-                  <button 
-                    onClick={handleWatchMovie}
-                    className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                    aria-label={`Play ${movie.title}`}
+                {trendingMovies.map((movie) => (
+                  <div
+                    key={movie.id}
+                    className="flex-none w-1/3 px-2"
                   >
-                    <div className="play-button bg-green-500 hover:bg-green-600 p-4 rounded-full hover:scale-110 transition-transform">
-                      <Play size={32} fill="white" />
-                    </div>
-                  </button>
-                </div>
-                
-                <div className="p-4">
-                  <h3 className="font-bold text-lg mb-2 line-clamp-1">{movie.title}</h3>
-                  <p className="text-gray-400 text-sm mb-3 line-clamp-2">{movie.description}</p>
-                  <div className="flex items-center justify-between">
-                    <span className="text-gray-500 text-sm">{movie.year}</span>
-                    <div className="flex flex-wrap gap-1">
-                      {movie.genre.slice(0, 2).map((g, i) => (
-                        <span key={i} className="bg-gray-800 px-2 py-1 rounded text-xs">
-                          {g}
-                        </span>
-                      ))}
+                    <div className="relative rounded-md overflow-hidden group">
+                      <img
+                        src={movie.posterUrl}
+                        alt={movie.title}
+                        className="w-full h-96 object-cover transition-transform duration-700 group-hover:scale-110"
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 flex items-end">
+                        <div className="p-4 w-full">
+                          <div className="flex justify-between items-center mb-2">
+                            <button 
+                              onClick={handleWatchMovie}
+                              className="bg-red-600 hover:bg-red-700 p-2 rounded-full transition-transform transform group-hover:scale-110"
+                            >
+                              <Play fill="white" size={20} />
+                            </button>
+                            <div className="flex space-x-2">
+                              <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                                <Plus size={18} />
+                              </button>
+                              <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                                <Heart size={18} />
+                              </button>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between text-sm mb-1">
+                            <span className="text-red-500 font-medium">Trending</span>
+                            <span className="text-gray-400">{movie.year}</span>
+                          </div>
+                          
+                          <h3 className="font-medium line-clamp-1">{movie.title}</h3>
+                          
+                          <div className="flex items-center space-x-2 mt-1 text-xs text-gray-400">
+                            <div className="flex items-center">
+                              <Star className="text-yellow-500 mr-1" size={12} fill="currentColor" />
+                              <span>{movie.rating}</span>
+                            </div>
+                            <span>•</span>
+                            <span>{movie.genre.join(', ')}</span>
+                          </div>
+                        </div>
+                      </div>
                     </div>
                   </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Categories Section */}
+      <section className="py-16 bg-[#0C0C0C]">
+        <div className="container mx-auto px-6">
+          <h2 className="text-2xl font-bold mb-8 flex items-center">
+            <span>Browse by Category</span>
+            <ChevronRight size={24} className="text-red-500 ml-2" />
+          </h2>
+
+          <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+            {["Action", "Comedy", "Drama", "Horror", "Sci-Fi", "Thriller"].map((category, index) => (
+              <div 
+                key={category}
+                className="relative h-32 rounded-lg overflow-hidden group cursor-pointer"
+              >
+                <img
+                  src={`https://images.unsplash.com/photo-${1500000000000 + index}?w=300&h=200&fit=crop&crop=center`}
+                  alt={category}
+                  className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 to-black/20"></div>
+                <div className="absolute inset-0 flex items-center justify-center">
+                  <span className="text-xl font-bold z-10">{category}</span>
                 </div>
+                <div className="absolute bottom-0 left-0 right-0 h-1 bg-red-600 transform scale-x-0 group-hover:scale-x-100 transition-transform duration-300 origin-left"></div>
               </div>
             ))}
           </div>
-
-          <div className="mt-12 text-center">
-            <button className="bg-transparent border-2 border-green-500 hover:bg-green-500/10 px-8 py-3 rounded-xl font-semibold transition-all duration-300 hover:shadow-xl hover:shadow-green-500/20 flex items-center space-x-2 mx-auto">
-              <span>View All Movies</span>
-              <ChevronRight size={20} />
+          
+          <div className="mt-8 text-center">
+            <button className="border border-gray-700 hover:border-white px-8 py-3 rounded-md transition-colors text-sm">
+              View All Categories
             </button>
           </div>
         </div>
       </section>
 
-      {/* Demo Video Section */}
-      <section className="py-20 bg-gradient-to-b from-gray-900 to-black">
+      {/* Features Section */}
+      <section 
+        id="features" 
+        className="py-20 bg-[#141414]"
+        ref={assignSectionRef('features')}
+      >
         <div className="container mx-auto px-6">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Experience the <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">Magic</span>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-6">
+              Why Choose <span className="text-red-600">DJ Afro Movies?</span>
+            </h2>
+            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
+              Discover what makes our platform the ultimate destination for premium movie entertainment.
+            </p>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
+            {[
+              {
+                icon: <Film className="text-red-500" size={48} />,
+                title: "Premium Quality",
+                description: "All movies in HD quality with crystal clear audio and DJ Afro's signature narration style."
+              },
+              {
+                icon: <Users className="text-red-500" size={48} />,
+                title: "50K+ Happy Users",
+                description: "Join our growing community of movie enthusiasts who trust DJ Afro for quality entertainment."
+              },
+              {
+                icon: <Clock className="text-red-500" size={48} />,
+                title: "24/7 Streaming",
+                description: "Watch your favorite movies anytime, anywhere. Our platform is available round the clock."
+              },
+              {
+                icon: <Award className="text-red-500" size={48} />,
+                title: "Curated Collection",
+                description: "Handpicked movies across all genres, ensuring quality content for every taste."
+              },
+              {
+                icon: <Eye className="text-red-500" size={48} />,
+                title: "No Ads for Members",
+                description: "Enjoy uninterrupted viewing experience with premium membership. No annoying ads."
+              },
+              {
+                icon: <CheckCircle className="text-red-500" size={48} />,
+                title: "Easy Sign Up",
+                description: "Quick registration process to get you watching your favorite movies in seconds."
+              }
+            ].map((feature, index) => (
+              <div
+                key={index}
+                className="bg-gray-900/50 border border-gray-800 hover:border-red-500/50 rounded-xl p-8 transition-all duration-300 hover:bg-gray-900 hover:shadow-lg hover:shadow-red-500/10"
+              >
+                <div className="mb-6">
+                  {feature.icon}
+                </div>
+                <h3 className="text-2xl font-bold mb-4 text-white">{feature.title}</h3>
+                <p className="text-gray-300 leading-relaxed">{feature.description}</p>
+              </div>
+            ))}
+          </div>
+        </div>
+      </section>
+
+      {/* Demo Video Section */}
+      <section className="py-20 bg-[#0C0C0C]">
+        <div className="container mx-auto px-6">
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-6">
+              Experience the <span className="text-red-600">Magic</span>
             </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
               Watch a preview of what makes DJ Afro movies special - premium quality, engaging narration, and unforgettable entertainment.
             </p>
           </div>
 
-          <div className="max-w-4xl mx-auto animate-fade-in-up">
-            <div className="relative bg-gradient-to-br from-gray-900 to-black border border-green-500/30 rounded-2xl overflow-hidden group hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-500 hover-play-pulse">
+          <div className="max-w-4xl mx-auto">
+            <div className="relative bg-gray-900 border border-gray-800 rounded-xl overflow-hidden group hover:border-red-500/30 transition-all duration-500">
               <div className="relative aspect-video">
                 <img
-                  src={currentMovie.posterUrl}
+                  src={currentMovie.backdropUrl}
                   alt="Video Preview"
                   className="w-full h-full object-cover"
                 />
                 <div className="absolute inset-0 bg-black/40 flex items-center justify-center">
                   <button
                     onClick={handleWatchMovie}
-                    className="play-button group bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 p-8 rounded-full hover:scale-110 transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/50"
+                    className="bg-red-600 hover:bg-red-700 p-8 rounded-full transition-transform duration-300 hover:scale-110 group-hover:shadow-2xl group-hover:shadow-red-500/30"
                     aria-label="Play demo video"
                   >
-                    <Play size={48} fill="white" className="ml-2" />
+                    <Play size={48} fill="white" />
                   </button>
                 </div>
               </div>
@@ -636,82 +1024,18 @@ export default function DjAfroLandingPage() {
             </div>
             
             <div className="mt-6 text-center text-gray-400">
-              <p>Watch 2 free movies without signing up. <span className="text-green-400 font-semibold">Sign up</span> for unlimited access.</p>
+              <p><span className="text-red-500 font-semibold">Sign up</span> to unlock unlimited access to premium DJ Afro movies.</p>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Features Section */}
-      <section 
-        id="features" 
-        className="py-20 bg-gradient-to-b from-black to-gray-900"
-        ref={assignSectionRef('features')}
-      >
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Why Choose <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">DJ Afro Movies?</span>
-            </h2>
-            <p className="text-xl text-gray-300 max-w-2xl mx-auto">
-              Discover what makes our platform the ultimate destination for premium movie entertainment.
-            </p>
-          </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8 stagger-children">
-            {[
-              {
-                icon: <Film className="text-green-400" size={48} />,
-                title: "Premium Quality",
-                description: "All movies in HD quality with crystal clear audio and DJ Afro's signature narration style."
-              },
-              {
-                icon: <Users className="text-green-400" size={48} />,
-                title: "50K+ Happy Users",
-                description: "Join our growing community of movie enthusiasts who trust DJ Afro for quality entertainment."
-              },
-              {
-                icon: <Clock className="text-green-400" size={48} />,
-                title: "24/7 Streaming",
-                description: "Watch your favorite movies anytime, anywhere. Our platform is available round the clock."
-              },
-              {
-                icon: <Award className="text-green-400" size={48} />,
-                title: "Curated Collection",
-                description: "Handpicked movies across all genres, ensuring quality content for every taste."
-              },
-              {
-                icon: <Eye className="text-green-400" size={48} />,
-                title: "No Ads for Members",
-                description: "Enjoy uninterrupted viewing experience with premium membership. No annoying ads."
-              },
-              {
-                icon: <CheckCircle className="text-green-400" size={48} />,
-                title: "Free to Start",
-                description: "Watch 2 movies completely free, then join our community for unlimited access."
-              }
-            ].map((feature, index) => (
-              <div
-                key={index}
-                className="group bg-gradient-to-br from-gray-900 to-black border border-gray-800 hover:border-green-500/50 rounded-xl p-8 transition-all duration-300 hover:scale-105 hover:shadow-2xl hover:shadow-green-500/20 hover-card"
-              >
-                <div className="mb-6 group-hover:scale-110 transition-transform duration-300">
-                  {feature.icon}
-                </div>
-                <h3 className="text-2xl font-bold mb-4 text-white">{feature.title}</h3>
-                <p className="text-gray-300 leading-relaxed">{feature.description}</p>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* Testimonials Section */}
-      <section className="py-20 bg-gradient-to-b from-gray-900 to-black">
+      <section className="py-20 bg-[#141414]">
         <div className="container mx-auto px-6">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              What Our <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">Users Say</span>
+          <div className="text-center mb-16">
+            <h2 className="text-4xl font-bold mb-6">
+              What Our <span className="text-red-600">Users Say</span>
             </h2>
             <p className="text-xl text-gray-300 max-w-2xl mx-auto">
               Join thousands of satisfied users enjoying the DJ Afro experience
@@ -732,7 +1056,7 @@ export default function DjAfroLandingPage() {
                       key={index}
                       className="w-full flex-shrink-0 px-4"
                     >
-                      <div className="bg-gradient-to-br from-gray-900 to-black border border-green-500/30 rounded-2xl p-8 hover:shadow-2xl hover:shadow-green-500/20 transition-all duration-500">
+                      <div className="bg-gray-900/50 border border-gray-800 rounded-xl p-8 hover:border-red-500/30">
                         <div className="flex items-center mb-6">
                           <div className="w-12 h-12 rounded-full overflow-hidden mr-4">
                             <img 
@@ -768,28 +1092,12 @@ export default function DjAfroLandingPage() {
                     key={index}
                     onClick={() => setCurrentTestimonialIndex(index)}
                     className={`w-3 h-3 rounded-full transition-all duration-300 ${
-                      index === currentTestimonialIndex ? 'bg-green-500 scale-125' : 'bg-gray-600'
+                      index === currentTestimonialIndex ? 'bg-red-500 scale-125' : 'bg-gray-600'
                     }`}
                     aria-label={`Go to testimonial ${index + 1}`}
                   />
                 ))}
               </div>
-              
-              <button
-                onClick={() => setCurrentTestimonialIndex((prev) => (prev === 0 ? testimonials.length - 1 : prev - 1))}
-                className="absolute top-1/2 -left-4 transform -translate-y-1/2 bg-gradient-to-r from-green-500 to-green-600 p-2 rounded-full hover:scale-110 transition-transform hidden md:block"
-                aria-label="Previous testimonial"
-              >
-                <ChevronLeft size={24} />
-              </button>
-              
-              <button
-                onClick={() => setCurrentTestimonialIndex((prev) => (prev === testimonials.length - 1 ? 0 : prev + 1))}
-                className="absolute top-1/2 -right-4 transform -translate-y-1/2 bg-gradient-to-r from-green-500 to-green-600 p-2 rounded-full hover:scale-110 transition-transform hidden md:block"
-                aria-label="Next testimonial"
-              >
-                <ChevronRight size={24} />
-              </button>
             </div>
           </div>
         </div>
@@ -798,17 +1106,17 @@ export default function DjAfroLandingPage() {
       {/* Mobile App Section */}
       <section 
         id="app" 
-        className="py-20 bg-gradient-to-b from-gray-900 to-black"
+        className="py-20 bg-[#0C0C0C]"
         ref={assignSectionRef('app')}
       >
         <div className="container mx-auto px-6">
           <div className="grid lg:grid-cols-2 gap-12 items-center">
-            <div className="space-y-8 animate-fade-in-left">
-              <h2 className="text-4xl lg:text-5xl font-bold">
-                Take DJ Afro Movies <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">Anywhere</span>
+            <div className="space-y-8">
+              <h2 className="text-4xl font-bold">
+                Take DJ Afro Movies <span className="text-red-600">Anywhere</span>
               </h2>
               <p className="text-xl text-gray-300 leading-relaxed">
-                Download our mobile app for the ultimate viewing experience. Currently in closed testing - be the first to experience the future of mobile entertainment.
+                Download our mobile app for the ultimate viewing experience. Watch your favorite DJ Afro movies on the go, anytime, anywhere.
               </p>
               
               <div className="space-y-4">
@@ -819,31 +1127,31 @@ export default function DjAfroLandingPage() {
                   "Optimized for all screen sizes"
                 ].map((feature, index) => (
                   <div key={index} className="flex items-center space-x-3">
-                    <CheckCircle className="text-green-400 flex-shrink-0" size={20} />
+                    <CheckCircle className="text-red-500 flex-shrink-0" size={20} />
                     <span className="text-gray-300">{feature}</span>
                   </div>
                 ))}
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:shadow-xl hover:shadow-green-500/30 flex items-center justify-center space-x-3 hover-button-press">
+                <button className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3">
                   <Smartphone size={24} />
-                  <span>Join Closed Beta</span>
+                  <span>Download App</span>
                 </button>
-                <button className="border-2 border-gray-700 hover:border-green-500 px-8 py-4 rounded-xl font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3 hover-button-press">
+                <button className="border-2 border-gray-700 hover:border-red-500 px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3">
                   <Download size={24} />
-                  <span>Coming Soon</span>
+                  <span>Learn More</span>
                 </button>
               </div>
             </div>
 
-            <div className="relative animate-fade-in-right">
-              <div className="relative mx-auto max-w-sm">
+            <div className="relative flex justify-center lg:justify-end">
+              <div className="relative w-72">
                 {/* Phone Mockup */}
-                <div className="relative bg-gradient-to-br from-gray-900 to-black border-4 border-gray-700 rounded-[2.5rem] p-4">
-                  <div className="bg-black rounded-[2rem] overflow-hidden">
+                <div className="relative bg-black border-4 border-gray-800 rounded-[2.5rem] p-2 shadow-2xl">
+                  <div className="rounded-[2rem] overflow-hidden bg-black">
                     <img
-                      src="https://images.unsplash.com/photo-1511707171634-5f897ff02aa9?w=300&h=600"
+                      src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=300&h=600&fit=crop"
                       alt="DJ Afro Movies Mobile App"
                       className="w-full h-full object-cover"
                     />
@@ -852,14 +1160,14 @@ export default function DjAfroLandingPage() {
                     <div className="absolute bottom-0 left-0 right-0 p-4">
                       <div className="bg-black/70 backdrop-blur-sm rounded-xl p-3 border border-gray-800">
                         <div className="flex items-center space-x-2">
-                          <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-lg flex items-center justify-center">
+                          <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
                             <Film className="text-white" size={20} />
                           </div>
                           <div>
                             <h4 className="text-sm font-bold">DJ Afro</h4>
                             <p className="text-xs text-gray-400">Now Playing</p>
                           </div>
-                          <button className="ml-auto bg-green-500 rounded-full p-2">
+                          <button className="ml-auto bg-red-600 rounded-full p-2">
                             <Play size={16} fill="white" />
                           </button>
                         </div>
@@ -867,89 +1175,37 @@ export default function DjAfroLandingPage() {
                     </div>
                   </div>
                 </div>
-                
-                {/* Floating Elements */}
-                <div className="absolute -top-8 -right-8 bg-gradient-to-r from-green-500 to-green-600 p-4 rounded-full animate-parallax-float">
-                  <Play size={24} fill="white" />
-                </div>
-                <div className="absolute -bottom-8 -left-8 bg-gradient-to-r from-blue-500 to-purple-600 p-4 rounded-full animate-pulse">
-                  <Star size={24} fill="white" />
-                </div>
-                
-                {/* QR Code */}
-                <div className="absolute -right-24 -bottom-16 bg-white p-2 rounded-lg shadow-xl rotate-6 hidden lg:block">
-                  <div className="w-20 h-20 bg-black">
-                    {/* Replace with actual QR code */}
-                    <div className="grid grid-cols-4 grid-rows-4 gap-1 p-2">
-                      {Array.from({ length: 16 }).map((_, i) => (
-                        <div 
-                          key={i} 
-                          className={`${Math.random() > 0.5 ? 'bg-white' : 'bg-black'} w-full h-full`}
-                        ></div>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="text-center text-black text-xs mt-1 font-semibold">Scan to Download</div>
-                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
 
-      {/* Stats Section */}
-      <section className="py-20 bg-gradient-to-b from-black to-gray-900">
-        <div className="container mx-auto px-6">
-          <div className="text-center mb-16 animate-fade-in-up">
-            <h2 className="text-4xl lg:text-5xl font-bold mb-6">
-              Trusted by <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">Thousands</span>
-            </h2>
-            <p className="text-xl text-gray-300">Join our growing community of movie lovers worldwide</p>
-          </div>
-          
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-8 animate-fade-in-up">
-            {[
-              { value: "500+", label: "Movies", icon: <Film size={32} className="text-green-400" /> },
-              { value: "50K+", label: "Happy Users", icon: <Users size={32} className="text-green-400" /> },
-              { value: "24/7", label: "Support", icon: <Clock size={32} className="text-green-400" /> },
-              { value: "100%", label: "Satisfaction", icon: <Award size={32} className="text-green-400" /> }
-            ].map((stat, index) => (
-              <div key={index} className="text-center p-8 rounded-2xl border border-gray-800 bg-gradient-to-br from-gray-900 to-black hover:border-green-500/30 transition-all duration-300 hover:shadow-xl hover:shadow-green-500/10">
-                <div className="flex justify-center mb-4">
-                  {stat.icon}
-                </div>
-                <div className="text-4xl font-bold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent animate-glow">
-                  {stat.value}
-                </div>
-                <div className="text-gray-400 mt-2">{stat.label}</div>
-              </div>
-            ))}
-          </div>
-        </div>
-      </section>
-
       {/* CTA Section */}
-      <section className="py-24 bg-gradient-to-r from-black to-gray-900 relative overflow-hidden">
+      <section className="py-24 bg-gradient-to-b from-[#141414] to-black relative overflow-hidden">
         <div className="absolute inset-0 opacity-20">
-          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(28,231,131,0.2),transparent_70%)]"></div>
+          <div className="absolute top-0 left-0 w-full h-full bg-[radial-gradient(circle_at_50%_50%,rgba(229,9,20,0.2),transparent_70%)]"></div>
         </div>
         
         <div className="container mx-auto px-6 relative z-10">
-          <div className="max-w-4xl mx-auto text-center animate-fade-in-up">
+          <div className="max-w-4xl mx-auto text-center">
             <h2 className="text-4xl lg:text-6xl font-bold mb-8 leading-tight">
-              Ready to Experience <span className="bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">DJ Afro Movies</span>?
+              Ready to Experience <span className="text-red-600">DJ Afro Movies</span>?
             </h2>
             <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto">
               Join thousands of satisfied users and unlock a world of premium entertainment with DJ Afro's unique narrative style.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
-              <button className="group bg-gradient-to-r from-green-500 to-green-600 hover:from-green-600 hover:to-green-700 px-10 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:shadow-2xl hover:shadow-green-500/30 hover:scale-105 flex items-center justify-center space-x-3 hover-button-press">
-                <Play className="group-hover:scale-110 transition-transform" size={24} />
+              <button 
+                onClick={handleWatchMovie}
+                className="bg-red-600 hover:bg-red-700 px-10 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3"
+              >
+                <Play size={24} />
                 <span>Start Watching Now</span>
               </button>
               
-              <button className="border-2 border-green-500 hover:bg-green-500/10 px-10 py-4 rounded-xl font-semibold text-lg transition-all duration-300 hover:shadow-xl hover:shadow-green-500/20 flex items-center justify-center space-x-3 hover-button-press">
+              <button className="bg-gray-800 hover:bg-gray-700 px-10 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3">
                 <Download size={24} />
                 <span>Get the App</span>
               </button>
@@ -959,15 +1215,15 @@ export default function DjAfroLandingPage() {
       </section>
 
       {/* Footer */}
-      <footer className="bg-black border-t border-gray-800">
+      <footer className="bg-black border-t border-gray-900">
         <div className="container mx-auto px-6 py-12">
           <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12">
             <div>
               <div className="flex items-center space-x-2 mb-6">
-                <div className="w-10 h-10 bg-gradient-to-r from-green-400 to-green-600 rounded-lg flex items-center justify-center">
+                <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
                   <Film className="text-white" size={24} />
                 </div>
-                <span className="text-2xl font-bold bg-gradient-to-r from-green-400 to-green-600 bg-clip-text text-transparent">
+                <span className="text-2xl font-bold text-white">
                   DJ Afro Movies
                 </span>
               </div>
@@ -977,11 +1233,10 @@ export default function DjAfroLandingPage() {
               </p>
               
               <div className="flex space-x-4">
-                {['twitter', 'facebook', 'instagram', 'youtube'].map((social) => (
-                  <a key={social} href={`#${social}`} className="text-gray-400 hover:text-green-400 transition-colors">
-                    <div className="w-10 h-10 border border-gray-700 rounded-full flex items-center justify-center hover:border-green-500">
-                      {/* Replace with actual social icons */}
-                      <span className="uppercase text-xs">{social[0]}</span>
+                {['T', 'F', 'I', 'Y'].map((social, index) => (
+                  <a key={index} href="#" className="text-gray-500 hover:text-red-500 transition-colors">
+                    <div className="w-10 h-10 border border-gray-800 rounded-full flex items-center justify-center hover:border-red-500">
+                      <span className="text-xs">{social}</span>
                     </div>
                   </a>
                 ))}
@@ -991,9 +1246,9 @@ export default function DjAfroLandingPage() {
             <div>
               <h3 className="font-bold text-lg mb-6 text-white">Quick Links</h3>
               <ul className="space-y-4">
-                {['Home', 'Movies', 'Features', 'Mobile App', 'Pricing', 'About Us'].map((link) => (
+                {['Home', 'Movies', 'TV Shows', 'New & Popular', 'My List', 'Browse by Languages'].map((link) => (
                   <li key={link}>
-                    <a href={`#${link.toLowerCase().replace(' ', '-')}`} className="text-gray-400 hover:text-green-400 transition-colors">
+                    <a href="#" className="text-gray-400 hover:text-red-500 transition-colors">
                       {link}
                     </a>
                   </li>
@@ -1004,9 +1259,9 @@ export default function DjAfroLandingPage() {
             <div>
               <h3 className="font-bold text-lg mb-6 text-white">Categories</h3>
               <ul className="space-y-4">
-                {['Action', 'Horror', 'Comedy', 'Thriller', 'Adventure', 'Documentary', 'Sci-Fi'].map((category) => (
+                {categories.slice(0, 6).map((category) => (
                   <li key={category}>
-                    <a href={`#${category.toLowerCase()}`} className="text-gray-400 hover:text-green-400 transition-colors">
+                    <a href="#" className="text-gray-400 hover:text-red-500 transition-colors">
                       {category}
                     </a>
                   </li>
@@ -1019,7 +1274,7 @@ export default function DjAfroLandingPage() {
               <ul className="space-y-4">
                 {['Help Center', 'FAQ', 'Contact Us', 'Terms of Service', 'Privacy Policy'].map((item) => (
                   <li key={item}>
-                    <a href={`#${item.toLowerCase().replace(' ', '-')}`} className="text-gray-400 hover:text-green-400 transition-colors">
+                    <a href="#" className="text-gray-400 hover:text-red-500 transition-colors">
                       {item}
                     </a>
                   </li>
@@ -1028,14 +1283,14 @@ export default function DjAfroLandingPage() {
             </div>
           </div>
           
-          <div className="border-t border-gray-800 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
+          <div className="border-t border-gray-900 mt-12 pt-8 flex flex-col md:flex-row justify-between items-center">
             <p className="text-gray-500 text-sm mb-4 md:mb-0">
               © {new Date().getFullYear()} DJ Afro Movies. All rights reserved.
             </p>
             
             <div className="flex space-x-6">
               {['Terms', 'Privacy', 'Cookies'].map((item) => (
-                <a key={item} href={`#${item.toLowerCase()}`} className="text-gray-500 hover:text-green-400 text-sm transition-colors">
+                <a key={item} href="#" className="text-gray-500 hover:text-red-500 text-sm transition-colors">
                   {item}
                 </a>
               ))}
