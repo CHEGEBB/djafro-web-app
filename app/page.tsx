@@ -1197,7 +1197,7 @@ export default function DjAfroMovies() {
               Ready to Experience <span className="text-red-600">DJ Afro Movies</span>?
             </h2>
             <p className="text-xl text-gray-300 mb-12 max-w-2xl mx-auto">
-              Join thousands of satisfied users and unlock a world of premium entertainment with DJ Afro's unique narrative style.
+              Join thousands of satisfied users and unlock a world of premium entertainment with DJ Afro&apos;s unique narrative style.
             </p>
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
