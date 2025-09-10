@@ -128,33 +128,42 @@ interface ThemeProviderProps {
 
 export const ThemeProvider: React.FC<ThemeProviderProps> = ({ children }) => {
   const [currentTheme, setCurrentTheme] = useState<AppTheme>(AppTheme.huluDark);
+  const [isHydrated, setIsHydrated] = useState(false);
 
-  // Load theme from localStorage on mount
+  // Load theme from localStorage on mount (client-side only)
   useEffect(() => {
-    const savedTheme = localStorage.getItem('djafro_theme');
-    if (savedTheme && Object.values(AppTheme).includes(savedTheme as AppTheme)) {
-      setCurrentTheme(savedTheme as AppTheme);
+    setIsHydrated(true);
+    
+    if (typeof window !== 'undefined') {
+      const savedTheme = localStorage.getItem('djafro_theme');
+      if (savedTheme && Object.values(AppTheme).includes(savedTheme as AppTheme)) {
+        setCurrentTheme(savedTheme as AppTheme);
+      }
     }
   }, []);
 
   // Save theme to localStorage and update CSS variables
   useEffect(() => {
-    localStorage.setItem('djafro_theme', currentTheme);
-    updateCSSVariables(themes[currentTheme]);
-  }, [currentTheme]);
+    if (isHydrated && typeof window !== 'undefined') {
+      localStorage.setItem('djafro_theme', currentTheme);
+      updateCSSVariables(themes[currentTheme]);
+    }
+  }, [currentTheme, isHydrated]);
 
   const updateCSSVariables = (colors: ThemeColors) => {
-    const root = document.documentElement;
-    root.style.setProperty('--color-primary', colors.primary);
-    root.style.setProperty('--color-secondary', colors.secondary);
-    root.style.setProperty('--color-background', colors.background);
-    root.style.setProperty('--color-surface', colors.surface);
-    root.style.setProperty('--color-text-primary', colors.textPrimary);
-    root.style.setProperty('--color-text-secondary', colors.textSecondary);
-    root.style.setProperty('--color-accent', colors.accent);
-    root.style.setProperty('--color-error', colors.error);
-    root.style.setProperty('--color-success', colors.success);
-    root.style.setProperty('--color-warning', colors.warning);
+    if (typeof document !== 'undefined') {
+      const root = document.documentElement;
+      root.style.setProperty('--color-primary', colors.primary);
+      root.style.setProperty('--color-secondary', colors.secondary);
+      root.style.setProperty('--color-background', colors.background);
+      root.style.setProperty('--color-surface', colors.surface);
+      root.style.setProperty('--color-text-primary', colors.textPrimary);
+      root.style.setProperty('--color-text-secondary', colors.textSecondary);
+      root.style.setProperty('--color-accent', colors.accent);
+      root.style.setProperty('--color-error', colors.error);
+      root.style.setProperty('--color-success', colors.success);
+      root.style.setProperty('--color-warning', colors.warning);
+    }
   };
 
   const setTheme = (theme: AppTheme) => {
