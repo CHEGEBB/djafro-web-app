@@ -3,6 +3,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { Play, Star, Download, Menu, X, Film, Users, Clock, Award, Smartphone, Eye, CheckCircle, 
   ChevronRight, ChevronLeft, Volume2, VolumeX, Heart, Search, Bell, Plus, User } from 'lucide-react';
+import Image from 'next/image';
 
 // Movie data with proper image paths
 const featuredMovies = [
@@ -1151,9 +1152,11 @@ export default function DjAfroMovies() {
                 {/* Phone Mockup */}
                 <div className="relative bg-black border-4 border-gray-800 rounded-[2.5rem] p-2 shadow-2xl">
                   <div className="rounded-[2rem] overflow-hidden bg-black">
-                    <img
-                      src="https://images.unsplash.com/photo-1512941937669-90a1b58e7e9c?w=300&h=600&fit=crop"
+                    <Image
+                      src="/assets/images/phone.jpg"
                       alt="DJ Afro Movies Mobile App"
+                      width={300}
+                      height={600}
                       className="w-full h-full object-cover"
                     />
                     <div className="absolute inset-0 bg-gradient-to-t from-black/50 to-transparent"></div>
