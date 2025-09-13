@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { Client, Account, Databases, Storage, Query, ID } from 'appwrite';
+import { Client, Account, Databases, Storage, Query, ID, TablesDB } from 'appwrite';
 
 // Initialize the Appwrite client
 export const client = new Client()
@@ -10,8 +10,9 @@ export const client = new Client()
 export const account = new Account(client);
 export const databases = new Databases(client);
 export const storage = new Storage(client);
+export const tablesDB = new TablesDB(client); // Add TablesDB
 
-// Database and Collection IDs
+// Database and Collection/Table IDs
 export const DATABASE_ID = process.env.NEXT_PUBLIC_DATABASE_ID!;
 export const COLLECTIONS = {
   MOVIES: process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
@@ -22,9 +23,19 @@ export const COLLECTIONS = {
   USER_LIBRARY: process.env.NEXT_PUBLIC_USER_LIBRARY_COLLECTION_ID!,
 };
 
+// Updated with the new TablesDB terminology
+export const TABLES = {
+  MOVIES: process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
+  USERS: process.env.NEXT_PUBLIC_USERS_COLLECTION_ID!,
+  SUBSCRIPTIONS: process.env.NEXT_PUBLIC_SUBSCRIPTIONS_COLLECTION_ID!,
+  DRIVE_INSTANCES: process.env.NEXT_PUBLIC_DRIVE_INSTANCES_COLLECTION_ID!,
+  ANALYTICS: process.env.NEXT_PUBLIC_ANALYTICS_COLLECTION_ID!,
+  USER_LIBRARY: process.env.NEXT_PUBLIC_USER_LIBRARY_COLLECTION_ID!,
+};
+
 export const STORAGE_BUCKET_ID = process.env.NEXT_PUBLIC_MEDIA_BUCKET_ID!;
 
-// Helper functions for common operations
+// Helper functions for common operations using both legacy and new TablesDB APIs
 export const appwriteHelpers = {
   // Get all movies
   getMovies: async (limit = 50, offset = 0) => {
@@ -40,6 +51,20 @@ export const appwriteHelpers = {
     }
   },
 
+  // Get all movies using TablesDB
+  getMoviesTablesDB: async (limit = 50, offset = 0) => {
+    try {
+      return await tablesDB.listRows(
+        DATABASE_ID,
+        TABLES.MOVIES,
+        [Query.limit(limit), Query.offset(offset), Query.orderDesc('$createdAt')]
+      );
+    } catch (error) {
+      console.error('Error fetching movies with TablesDB:', error);
+      throw error;
+    }
+  },
+
   // Get featured movies
   getFeaturedMovies: async () => {
     try {
@@ -50,6 +75,20 @@ export const appwriteHelpers = {
       );
     } catch (error) {
       console.error('Error fetching featured movies:', error);
+      throw error;
+    }
+  },
+
+  // Get featured movies using TablesDB
+  getFeaturedMoviesTablesDB: async () => {
+    try {
+      return await tablesDB.listRows(
+        DATABASE_ID,
+        TABLES.MOVIES,
+        [Query.equal('featured', true), Query.limit(5)]
+      );
+    } catch (error) {
+      console.error('Error fetching featured movies with TablesDB:', error);
       throw error;
     }
   },
@@ -92,6 +131,20 @@ export const appwriteHelpers = {
       );
     } catch (error) {
       console.error('Error fetching movie:', error);
+      throw error;
+    }
+  },
+
+  // Get single movie using TablesDB
+  getMovieTablesDB: async (movieId: string) => {
+    try {
+      return await tablesDB.getRow(
+        DATABASE_ID,
+        TABLES.MOVIES,
+        movieId
+      );
+    } catch (error) {
+      console.error('Error fetching movie with TablesDB:', error);
       throw error;
     }
   },
@@ -146,6 +199,20 @@ export const appwriteHelpers = {
       );
     } catch (error) {
       console.error('Error fetching user library:', error);
+      throw error;
+    }
+  },
+
+  // Get user library using TablesDB
+  getUserLibraryTablesDB: async (userId: string) => {
+    try {
+      return await tablesDB.listRows(
+        DATABASE_ID,
+        TABLES.USER_LIBRARY,
+        [Query.equal('userId', userId)]
+      );
+    } catch (error) {
+      console.error('Error fetching user library with TablesDB:', error);
       throw error;
     }
   }

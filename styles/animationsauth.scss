@@ -1,0 +1,429 @@
+// Auth page animations and styles
+@keyframes slideInUp {
+    from {
+      opacity: 0;
+      transform: translateY(2rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  @keyframes slideInLeft {
+    from {
+      opacity: 0;
+      transform: translateX(-2rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes slideInRight {
+    from {
+      opacity: 0;
+      transform: translateX(2rem);
+    }
+    to {
+      opacity: 1;
+      transform: translateX(0);
+    }
+  }
+  
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+    }
+    to {
+      opacity: 1;
+    }
+  }
+  
+  @keyframes shimmer {
+    0% {
+      background-position: -200% 0;
+    }
+    100% {
+      background-position: 200% 0;
+    }
+  }
+  
+  @keyframes pulse {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.8;
+    }
+  }
+  
+  @keyframes backgroundShift {
+    0% {
+      background-position: 0% 50%;
+    }
+    50% {
+      background-position: 100% 50%;
+    }
+    100% {
+      background-position: 0% 50%;
+    }
+  }
+  
+  // Main container animations
+  .auth-container {
+    min-height: 100vh;
+    width: 100%;
+    position: relative;
+    overflow: hidden;
+  }
+  
+  // Left side image section
+  .auth-image-section {
+    position: relative;
+    background-size: cover;
+    background-position: center;
+    background-repeat: no-repeat;
+    animation: backgroundShift 20s ease-in-out infinite;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: linear-gradient(
+        135deg,
+        rgba(0, 0, 0, 0.9) 0%,
+        rgba(0, 0, 0, 0.7) 35%,
+        rgba(0, 0, 0, 0.4) 70%,
+        rgba(0, 0, 0, 0.1) 100%
+      );
+      z-index: 1;
+    }
+    
+    .content-overlay {
+      position: relative;
+      z-index: 2;
+      animation: slideInLeft 1s ease-out 0.3s both;
+    }
+  }
+  
+  // Form section with gradient
+  .auth-form-section {
+    background: linear-gradient(
+      180deg,
+      #000000 0%,
+      #1a1a1a 25%,
+      #2a2a2a 50%,
+      #1a1a1a 75%,
+      #000000 100%
+    );
+    background-size: 200% 200%;
+    animation: backgroundShift 25s ease-in-out infinite;
+    position: relative;
+    
+    &::before {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      background: radial-gradient(
+        ellipse at center,
+        rgba(239, 68, 68, 0.1) 0%,
+        rgba(0, 0, 0, 0.3) 70%,
+        rgba(0, 0, 0, 0.8) 100%
+      );
+      z-index: 1;
+    }
+    
+    .form-container {
+      position: relative;
+      z-index: 2;
+    }
+  }
+  
+  // Form animations
+  .auth-form-container {
+    opacity: 0;
+    transform: translateY(2rem);
+    transition: all 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+    
+    &.animate-in {
+      opacity: 1;
+      transform: translateY(0);
+      animation: slideInUp 0.8s ease-out;
+    }
+  }
+  
+  // Logo animations
+  .logo-container {
+    animation: fadeIn 1s ease-out 0.5s both;
+    
+    .logo-icon {
+      transition: transform 0.3s ease;
+      
+      &:hover {
+        transform: scale(1.1) rotate(5deg);
+      }
+    }
+  }
+  
+  // Feature list animations
+  .feature-item {
+    opacity: 0;
+    transform: translateX(-1rem);
+    
+    &:nth-child(1) {
+      animation: slideInLeft 0.6s ease-out 0.8s both;
+    }
+    
+    &:nth-child(2) {
+      animation: slideInLeft 0.6s ease-out 1s both;
+    }
+    
+    &:nth-child(3) {
+      animation: slideInLeft 0.6s ease-out 1.2s both;
+    }
+    
+    .feature-icon {
+      transition: all 0.3s ease;
+      
+      &:hover {
+        transform: scale(1.1);
+        background-color: rgba(239, 68, 68, 0.3);
+      }
+    }
+  }
+  
+  // Input field animations
+  .input-group {
+    position: relative;
+    
+    .input-field {
+      transition: all 0.3s ease;
+      border: 2px solid transparent;
+      
+      &:focus {
+        border-color: #ef4444;
+        box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.1);
+        transform: translateY(-1px);
+      }
+      
+      &:hover:not(:focus) {
+        border-color: rgba(239, 68, 68, 0.3);
+      }
+    }
+    
+    .input-icon {
+      transition: color 0.3s ease;
+    }
+    
+    .input-field:focus + .input-icon {
+      color: #ef4444;
+    }
+  }
+  
+  // Button animations
+  .submit-button {
+    position: relative;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    background: linear-gradient(135deg, #dc2626, #ef4444);
+    background-size: 200% 200%;
+    
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 8px 25px rgba(239, 68, 68, 0.4);
+      background-position: 100% 100%;
+    }
+    
+    &:active {
+      transform: translateY(0);
+    }
+    
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+    
+    .button-content {
+      transition: all 0.3s ease;
+    }
+    
+    &:hover .button-content {
+      transform: translateX(2px);
+    }
+    
+    // Loading state
+    &.loading {
+      .button-content {
+        opacity: 0;
+      }
+      
+      .spinner {
+        opacity: 1;
+      }
+    }
+    
+    .spinner {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      opacity: 0;
+      transition: opacity 0.3s ease;
+    }
+  }
+  
+  // Alert animations
+  .alert {
+    animation: slideInUp 0.5s ease-out;
+    border-left: 4px solid;
+    
+    &.error {
+      border-left-color: #ef4444;
+      background: linear-gradient(135deg, rgba(239, 68, 68, 0.1), rgba(239, 68, 68, 0.05));
+      animation: pulse 2s ease-in-out infinite;
+    }
+    
+    &.success {
+      border-left-color: #10b981;
+      background: linear-gradient(135deg, rgba(16, 185, 129, 0.1), rgba(16, 185, 129, 0.05));
+    }
+    
+    &.warning {
+      border-left-color: #f59e0b;
+      background: linear-gradient(135deg, rgba(245, 158, 11, 0.1), rgba(245, 158, 11, 0.05));
+    }
+    
+    .alert-icon {
+      animation: fadeIn 0.3s ease-out 0.2s both;
+    }
+  }
+  
+  // Toggle button animation
+  .toggle-button {
+    position: relative;
+    transition: all 0.3s ease;
+    
+    &:hover {
+      color: #ef4444;
+      transform: translateX(2px);
+    }
+    
+    &::after {
+      content: '';
+      position: absolute;
+      bottom: -2px;
+      left: 0;
+      width: 0;
+      height: 2px;
+      background: #ef4444;
+      transition: width 0.3s ease;
+    }
+    
+    &:hover::after {
+      width: 100%;
+    }
+  }
+  
+  // Mobile specific animations
+  @media (max-width: 768px) {
+    .auth-image-section {
+      position: absolute;
+      top: 0;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      z-index: 0;
+      
+      &::before {
+        background: linear-gradient(
+          180deg,
+          rgba(0, 0, 0, 0.3) 0%,
+          rgba(0, 0, 0, 0.5) 30%,
+          rgba(0, 0, 0, 0.8) 60%,
+          rgba(0, 0, 0, 0.95) 100%
+        );
+      }
+    }
+    
+    .auth-form-section {
+      position: relative;
+      z-index: 1;
+      background: transparent;
+      
+      &::before {
+        display: none;
+      }
+      
+      .form-container {
+        background: rgba(0, 0, 0, 0.8);
+        backdrop-filter: blur(10px);
+        border-radius: 1rem;
+        border: 1px solid rgba(255, 255, 255, 0.1);
+      }
+    }
+    
+    .mobile-logo {
+      animation: fadeIn 1s ease-out both;
+      margin-bottom: 2rem;
+    }
+    
+    .feature-item {
+      display: none; // Hide features on mobile to reduce clutter
+    }
+  }
+  
+  // Responsive breakpoints
+  @media (min-width: 769px) and (max-width: 1024px) {
+    .auth-image-section {
+      .content-overlay {
+        padding: 2rem;
+      }
+    }
+    
+    .feature-item {
+      margin-bottom: 1rem;
+    }
+  }
+  
+  // Dark mode improvements
+  @media (prefers-color-scheme: dark) {
+    .auth-form-section {
+      background: linear-gradient(
+        180deg,
+        #000000 0%,
+        #111111 25%,
+        #222222 50%,
+        #111111 75%,
+        #000000 100%
+      );
+    }
+  }
+  
+  // Accessibility improvements
+  @media (prefers-reduced-motion: reduce) {
+    * {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+    }
+  }
+  
+  // Print styles
+  @media print {
+    .auth-container {
+      background: white;
+      color: black;
+    }
+    
+    .auth-image-section {
+      display: none;
+    }
+  }

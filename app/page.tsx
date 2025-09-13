@@ -1,9 +1,12 @@
 'use client';
 
 import React, { useState, useEffect, useRef } from 'react';
+import { useRouter } from 'next/navigation';
 import { Play, Star, Download, Menu, X, Film, Users, Clock, Award, Smartphone, Eye, CheckCircle, 
   ChevronRight, ChevronLeft, Volume2, VolumeX, Heart, Search, Bell, Plus, User } from 'lucide-react';
 import Image from 'next/image';
+import { toast, Toaster } from 'react-hot-toast';
+
 
 // Movie data with proper image paths
 const featuredMovies = [
@@ -167,7 +170,6 @@ const testimonials = [
 export default function DjAfroMovies() {
   const [currentMovieIndex, setCurrentMovieIndex] = useState(0);
   const [isMenuOpen, setIsMenuOpen] = useState(false);
-  const [showSignupModal, setShowSignupModal] = useState(false);
   const [isVideoPlaying, setIsVideoPlaying] = useState(false);
   const [isScrolled, setIsScrolled] = useState(false);
   const [currentTestimonialIndex, setCurrentTestimonialIndex] = useState(0);
@@ -178,6 +180,7 @@ export default function DjAfroMovies() {
   const [featuredScrollIndex, setFeaturedScrollIndex] = useState(0);
   const [trendingScrollIndex, setTrendingScrollIndex] = useState(0);
   
+  const router = useRouter();
   const videoRef = useRef<HTMLVideoElement>(null);
   const searchInputRef = useRef<HTMLInputElement>(null);
   const sectionsRef = useRef<Record<string, HTMLElement | null>>({
@@ -254,8 +257,21 @@ export default function DjAfroMovies() {
 
   const currentMovie = featuredMovies[currentMovieIndex];
 
+  // Function to redirect to auth page with a message
+  const redirectToAuth = (movieTitle: string) => {
+    toast.success(`Sign up to watch ${movieTitle}!`, {
+      duration: 2000,
+      position: 'bottom-center',
+    });
+    
+    // Short delay before redirecting to auth page
+    setTimeout(() => {
+      router.push('/auth');
+    }, 1500);
+  };
+
   const handleWatchMovie = () => {
-    setShowSignupModal(true);
+    redirectToAuth(currentMovie.title);
   };
 
   const handleVideoEnd = () => {
@@ -276,16 +292,6 @@ export default function DjAfroMovies() {
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
     setIsSearchActive(false);
-  };
-
-  const handleSignup = (e: React.FormEvent) => {
-    e.preventDefault();
-    setShowSignupModal(false);
-    setIsVideoPlaying(true);
-    
-    if (videoRef.current) {
-      videoRef.current.play();
-    }
   };
 
   const scrollFeatured = (direction: 'left' | 'right') => {
@@ -350,63 +356,6 @@ export default function DjAfroMovies() {
     </div>
   );
 
-  // Signup Modal Component
-  const SignupModal = () => (
-    <div className="fixed inset-0 bg-black/80 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-      <div className="bg-gradient-to-br from-gray-900 to-black border border-red-500/30 rounded-2xl p-8 max-w-md w-full relative animate-scale-in">
-        <button
-          onClick={() => setShowSignupModal(false)}
-          className="absolute top-4 right-4 text-gray-400 hover:text-white transition-colors"
-          aria-label="Close modal"
-        >
-          <X size={24} />
-        </button>
-        
-        <div className="text-center mb-6">
-          <div className="w-16 h-16 bg-gradient-to-r from-red-500 to-red-600 rounded-full mx-auto mb-4 flex items-center justify-center">
-            <Film className="text-white" size={32} />
-          </div>
-          <h3 className="text-2xl font-bold text-white mb-2">Sign Up to Watch</h3>
-          <p className="text-gray-300">Create your account to enjoy unlimited DJ Afro movies</p>
-        </div>
-
-        <form onSubmit={handleSignup} className="space-y-4">
-          <input
-            type="text"
-            placeholder="Username"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
-            required
-          />
-          <input
-            type="email"
-            placeholder="Email"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
-            required
-          />
-          <input
-            type="password"
-            placeholder="Password"
-            className="w-full px-4 py-3 bg-gray-800 border border-gray-700 rounded-lg text-white placeholder-gray-400 focus:border-red-500 focus:outline-none transition-colors"
-            required
-          />
-          <button
-            type="submit"
-            className="w-full bg-gradient-to-r from-red-500 to-red-600 hover:from-red-600 hover:to-red-700 text-white font-semibold py-3 rounded-lg transition-all duration-300 hover:shadow-lg hover:shadow-red-500/25"
-          >
-            Sign Up & Watch Now
-          </button>
-        </form>
-
-        <div className="mt-6 text-center">
-          <p className="text-gray-400 text-sm">Already have an account?</p>
-          <button className="text-red-400 hover:text-red-300 font-semibold transition-colors">
-            Sign In
-          </button>
-        </div>
-      </div>
-    </div>
-  );
-
   // Search Overlay Component
   const SearchOverlay = () => (
     <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-40">
@@ -453,6 +402,23 @@ export default function DjAfroMovies() {
 
   return (
     <div className="min-h-screen bg-[#141414] text-white overflow-x-hidden">
+      <Toaster 
+        position="bottom-center"
+        toastOptions={{
+          duration: 3000,
+          style: {
+            background: '#1f1f1f',
+            color: '#fff',
+            border: '1px solid #374151',
+          },
+          success: {
+            style: {
+              background: '#dc2626',
+              color: '#fff',
+            },
+          },
+        }}
+      />
       {/* Custom Styles */}
       <style jsx>{`
         @keyframes scale-in {
@@ -482,9 +448,6 @@ export default function DjAfroMovies() {
 
       {/* Video Player */}
       {isVideoPlaying && <VideoPlayer />}
-
-      {/* Signup Modal */}
-      {showSignupModal && <SignupModal />}
       
       {/* Search Overlay */}
       {isSearchActive && <SearchOverlay />}
@@ -572,11 +535,14 @@ export default function DjAfroMovies() {
               </button>
               
               <div className="hidden md:flex items-center space-x-2">
-                <button className="bg-transparent border border-gray-700 hover:border-white px-4 py-1 rounded text-sm transition-colors">
+                <button 
+                  onClick={() => router.push('/auth')}
+                  className="bg-transparent border border-gray-700 hover:border-white px-4 py-1 rounded text-sm transition-colors"
+                >
                   Sign In
                 </button>
                 <button 
-                  onClick={() => setShowSignupModal(true)}
+                  onClick={() => router.push('/auth')}
                   className="bg-red-600 hover:bg-red-700 px-4 py-1 rounded text-sm transition-colors"
                 >
                   Sign Up
@@ -614,11 +580,19 @@ export default function DjAfroMovies() {
                 Movies
               </a>
               <div className="pt-4 border-t border-gray-800 space-y-2">
-                <button className="block w-full text-left py-2">Sign In</button>
                 <button 
                   onClick={() => {
                     setIsMenuOpen(false);
-                    setShowSignupModal(true);
+                    router.push('/auth');
+                  }}
+                  className="block w-full text-left py-2"
+                >
+                  Sign In
+                </button>
+                <button 
+                  onClick={() => {
+                    setIsMenuOpen(false);
+                    router.push('/auth');
                   }}
                   className="block w-full bg-red-600 text-center py-2 rounded font-semibold"
                 >
@@ -689,7 +663,10 @@ export default function DjAfroMovies() {
                 <span>Play Now</span>
               </button>
               
-              <button className="bg-gray-800/80 hover:bg-gray-700 px-8 py-3 rounded-md font-semibold text-lg transition-all duration-300 flex items-center space-x-3">
+              <button 
+                onClick={() => redirectToAuth("to your list")}
+                className="bg-gray-800/80 hover:bg-gray-700 px-8 py-3 rounded-md font-semibold text-lg transition-all duration-300 flex items-center space-x-3"
+              >
                 <Plus size={24} />
                 <span>My List</span>
               </button>
@@ -754,16 +731,22 @@ export default function DjAfroMovies() {
                       <div className="p-4 w-full">
                         <div className="flex justify-between items-center mb-2">
                           <button 
-                            onClick={handleWatchMovie}
+                            onClick={() => redirectToAuth(movie.title)}
                             className="bg-red-600 hover:bg-red-700 p-2 rounded-full transition-transform transform group-hover:scale-110"
                           >
                             <Play fill="white" size={20} />
                           </button>
                           <div className="flex space-x-2">
-                            <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                            <button 
+                              onClick={() => redirectToAuth("to your list")}
+                              className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors"
+                            >
                               <Plus size={18} />
                             </button>
-                            <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                            <button 
+                              onClick={() => redirectToAuth("to your favorites")}
+                              className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors"
+                            >
                               <Heart size={18} />
                             </button>
                           </div>
@@ -837,16 +820,22 @@ export default function DjAfroMovies() {
                         <div className="p-4 w-full">
                           <div className="flex justify-between items-center mb-2">
                             <button 
-                              onClick={handleWatchMovie}
+                              onClick={() => redirectToAuth(movie.title)}
                               className="bg-red-600 hover:bg-red-700 p-2 rounded-full transition-transform transform group-hover:scale-110"
                             >
                               <Play fill="white" size={20} />
                             </button>
                             <div className="flex space-x-2">
-                              <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                              <button 
+                                onClick={() => redirectToAuth("to your list")}
+                                className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors"
+                              >
                                 <Plus size={18} />
                               </button>
-                              <button className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors">
+                              <button 
+                                onClick={() => redirectToAuth("to your favorites")}
+                                className="bg-gray-800/70 hover:bg-gray-700 p-2 rounded-full transition-colors"
+                              >
                                 <Heart size={18} />
                               </button>
                             </div>
@@ -891,10 +880,10 @@ export default function DjAfroMovies() {
               <div 
                 key={category}
                 className="relative h-32 rounded-lg overflow-hidden group cursor-pointer"
+                onClick={() => redirectToAuth(`${category} movies`)}
               >
                 <img
                   src={`assets/images/image${index + 1}.jpg`}
-                  // src={`https://images.unsplash.com/photo-${1500000000000 + index}?w=300&h=200&fit=crop&crop=center`}
                   alt={category}
                   className="absolute inset-0 w-full h-full object-cover transition-transform duration-300 group-hover:scale-110"
                 />
@@ -908,7 +897,10 @@ export default function DjAfroMovies() {
           </div>
           
           <div className="mt-8 text-center">
-            <button className="border border-gray-700 hover:border-white px-8 py-3 rounded-md transition-colors text-sm">
+            <button 
+              onClick={() => redirectToAuth("to browse all categories")}
+              className="border border-gray-700 hover:border-white px-8 py-3 rounded-md transition-colors text-sm"
+            >
               View All Categories
             </button>
           </div>
@@ -1136,11 +1128,17 @@ export default function DjAfroMovies() {
               </div>
 
               <div className="flex flex-col sm:flex-row gap-4">
-                <button className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3">
+                <button 
+                  onClick={() => redirectToAuth("to download the app")}
+                  className="bg-red-600 hover:bg-red-700 px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3"
+                >
                   <Smartphone size={24} />
                   <span>Download App</span>
                 </button>
-                <button className="border-2 border-gray-700 hover:border-red-500 px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3">
+                <button 
+                  onClick={() => redirectToAuth("to learn more")}
+                  className="border-2 border-gray-700 hover:border-red-500 px-8 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3"
+                >
                   <Download size={24} />
                   <span>Learn More</span>
                 </button>
@@ -1171,7 +1169,10 @@ export default function DjAfroMovies() {
                             <h4 className="text-sm font-bold">DJ Afro</h4>
                             <p className="text-xs text-gray-400">Now Playing</p>
                           </div>
-                          <button className="ml-auto bg-red-600 rounded-full p-2">
+                          <button 
+                            onClick={() => redirectToAuth("to play in mobile app")}
+                            className="ml-auto bg-red-600 rounded-full p-2"
+                          >
                             <Play size={16} fill="white" />
                           </button>
                         </div>
@@ -1202,14 +1203,17 @@ export default function DjAfroMovies() {
             
             <div className="flex flex-col sm:flex-row gap-4 justify-center">
               <button 
-                onClick={handleWatchMovie}
+                onClick={() => router.push('/auth')}
                 className="bg-red-600 hover:bg-red-700 px-10 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3"
               >
                 <Play size={24} />
                 <span>Start Watching Now</span>
               </button>
               
-              <button className="bg-gray-800 hover:bg-gray-700 px-10 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3">
+              <button 
+                onClick={() => redirectToAuth("to get the app")}
+                className="bg-gray-800 hover:bg-gray-700 px-10 py-4 rounded-lg font-semibold text-lg transition-all duration-300 flex items-center justify-center space-x-3"
+              >
                 <Download size={24} />
                 <span>Get the App</span>
               </button>
@@ -1252,7 +1256,14 @@ export default function DjAfroMovies() {
               <ul className="space-y-4">
                 {['Home', 'Movies', 'TV Shows', 'New & Popular', 'My List', 'Browse by Languages'].map((link) => (
                   <li key={link}>
-                    <a href="#" className="text-gray-400 hover:text-red-500 transition-colors">
+                    <a 
+                      href="#" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        redirectToAuth(link);
+                      }}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
                       {link}
                     </a>
                   </li>
@@ -1265,7 +1276,14 @@ export default function DjAfroMovies() {
               <ul className="space-y-4">
                 {categories.slice(0, 6).map((category) => (
                   <li key={category}>
-                    <a href="#" className="text-gray-400 hover:text-red-500 transition-colors">
+                    <a 
+                      href="#" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        redirectToAuth(category);
+                      }}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
                       {category}
                     </a>
                   </li>
@@ -1278,7 +1296,14 @@ export default function DjAfroMovies() {
               <ul className="space-y-4">
                 {['Help Center', 'FAQ', 'Contact Us', 'Terms of Service', 'Privacy Policy'].map((item) => (
                   <li key={item}>
-                    <a href="#" className="text-gray-400 hover:text-red-500 transition-colors">
+                    <a 
+                      href="#" 
+                      onClick={(e) => {
+                        e.preventDefault();
+                        redirectToAuth(item);
+                      }}
+                      className="text-gray-400 hover:text-red-500 transition-colors"
+                    >
                       {item}
                     </a>
                   </li>
@@ -1294,7 +1319,15 @@ export default function DjAfroMovies() {
             
             <div className="flex space-x-6">
               {['Terms', 'Privacy', 'Cookies'].map((item) => (
-                <a key={item} href="#" className="text-gray-500 hover:text-red-500 text-sm transition-colors">
+                <a 
+                  key={item} 
+                  href="#" 
+                  onClick={(e) => {
+                    e.preventDefault();
+                    redirectToAuth(item);
+                  }}
+                  className="text-gray-500 hover:text-red-500 text-sm transition-colors"
+                >
                   {item}
                 </a>
               ))}
