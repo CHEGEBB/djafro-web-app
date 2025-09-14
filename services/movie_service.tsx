@@ -1,8 +1,9 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // services/movie_service.tsx
-import { Client, Databases, Storage, Account, Query, ID, TablesDB } from 'appwrite';
+'use client'
+import { Client, Databases, Storage, Account, ID, Models, Query, TablesDB } from 'appwrite';
 import { useEffect, useState } from 'react';
 
+// Types needed for the service
 export interface VideoPlayerData {
   id: string;
   title: string;
@@ -22,11 +23,21 @@ export interface VideoPlayerData {
   userRating: number;
   isWishlisted: boolean;
   requiresAdToPlay: boolean;
+
+  getBestVideoUrl(): string;
+  getAvailableQualities(): string[];
+  readonly isYouTubeVideo: boolean;
+  readonly isDailymotionVideo: boolean;
+  readonly isBunnyVideo: boolean;
+  readonly youtubeVideoId: string | null;
+  readonly dailymotionVideoId: string | null;
+  readonly dailymotionEmbedUrl: string | null;
 }
 
 export class MovieService {
   // Singleton pattern
   private static _instance: MovieService;
+  
   public static getInstance(): MovieService {
     if (!MovieService._instance) {
       MovieService._instance = new MovieService();
@@ -34,62 +45,99 @@ export class MovieService {
     return MovieService._instance;
   }
 
-  // Constants
-  public static readonly SOURCE_BUNNY = 'bunny';
-  public static readonly SOURCE_YOUTUBE = 'youtube';
-  public static readonly SOURCE_DAILYMOTION = 'dailymotion';
-  private static readonly AD_VIEW_THRESHOLD = 3;
-  private static readonly AD_TIME_INTERVAL = 15 * 60 * 1000; // 15 minutes in milliseconds
-  private static readonly FEATURED_SELECTION_SIZE = 5;
-  private static readonly FEATURED_CACHE_DURATION = 60 * 60 * 1000; // 1 hour in milliseconds
-  private static readonly FEATURED_ROTATION_INTERVAL = 10 * 60 * 1000; // 10 minutes in milliseconds
-
-  // Appwrite services
+  // Client services
   private _client: Client;
   private _databases: Databases;
   private _tablesDB: TablesDB;
   private _storage: Storage;
   private _account: Account;
-
-  // Cache and state
+  
+  // Local cache for tracking progress temporarily
   private _progressCache: Map<string, any> = new Map();
   private _currentUserId: string | null = null;
+  
+  // User preferences for ads
   private _isPremiumUser = false;
   private _adViewCount = 0;
   private _lastAdShownTime: Date | null = null;
-  private _movieListCache: Map<string, any[]> = new Map();
-  private _cacheExpiry: Map<string, Date> = new Map();
+  
+  // Constants for ad frequency control
+  static readonly AD_VIEW_THRESHOLD = 3; // Show ad after this many free views
+  static readonly AD_TIME_INTERVAL = 15 * 60 * 1000; // Minimum time between ads (15 min)
+  
+  // Video source types
+  static readonly SOURCE_BUNNY = 'bunny';
+  static readonly SOURCE_YOUTUBE = 'youtube';
+  static readonly SOURCE_DAILYMOTION = 'dailymotion';
+  
+  // Featured movies cache and timestamp for rotation
   private _allFeaturedMoviesCache: any[] | null = null;
   private _featuredMoviesCacheTimestamp: Date | null = null;
   private _currentFeaturedSelection: any[] | null = null;
-  private _random = Math.random;
-  private _cacheDuration = 10 * 60 * 1000; // 10 minutes in milliseconds
+  
+  // Constants for featured movies rotation
+  static readonly FEATURED_SELECTION_SIZE = 5; // Number of featured movies to show at once
+  static readonly FEATURED_CACHE_DURATION = 60 * 60 * 1000; // How long to keep all featured movies cached (60 min)
+  static readonly FEATURED_ROTATION_INTERVAL = 10 * 60 * 1000; // How often to rotate featured selection (10 min)
 
-  constructor() {
-    // Initialize Appwrite client
+  // Using memory cache for frequently used movie lists
+  private _movieListCache: Map<string, any[]> = new Map();
+  private _cacheExpiry: Map<string, Date> = new Map();
+  static readonly _cacheDuration = 10 * 60 * 1000; // 10 minutes
+
+  // Flag to check if user preferences collection exists
+  private _userPreferencesCollectionExists = false;
+
+  private constructor() {
+    // Initialize client
     this._client = new Client()
       .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT || '')
       .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID || '');
-
+    
     this._databases = new Databases(this._client);
     this._tablesDB = new TablesDB(this._client);
     this._storage = new Storage(this._client);
     this._account = new Account(this._client);
   }
 
-  // Initialization method
   async initialize(): Promise<void> {
     try {
       // Get user ID if logged in
       await this._updateCurrentUserId();
       
-      // Check if user is premium
-      await this._checkUserPremiumStatus();
+      // Check if user preferences collection exists
+      await this._checkUserPreferencesCollection();
       
-      // Load ad view tracking from local storage
+      // Only check premium status if user preferences collection exists
+      if (this._userPreferencesCollectionExists) {
+        await this._checkUserPremiumStatus();
+      }
+      
+      // Load ad view tracking from storage
       this._loadAdViewTracking();
+      
     } catch (e) {
       console.error('MovieService initialization error:', e);
+      // Continue without blocking - important to not block the app
+    }
+  }
+
+  private async _checkUserPreferencesCollection(): Promise<void> {
+    try {
+      const userPrefsCollectionId = process.env.NEXT_PUBLIC_USER_PREFERENCES_COLLECTION_ID || 'user_preferences';
+      
+      // Try to list tables in the database to see if user_preferences exists
+      const collections = await this._databases.listCollections(
+        process.env.NEXT_PUBLIC_DATABASE_ID || ''
+      );
+      
+      this._userPreferencesCollectionExists = collections.collections.some(
+        collection => collection.$id === userPrefsCollectionId
+      );
+      
+    } catch (e) {
+      console.error('Error checking user preferences collection:', e);
+      this._userPreferencesCollectionExists = false;
     }
   }
 
@@ -103,86 +151,100 @@ export class MovieService {
   }
 
   private async _ensureUserAuthenticated(): Promise<boolean> {
-    if (!this._currentUserId) {
+    if (this._currentUserId === null) {
       await this._updateCurrentUserId();
     }
-    return !!this._currentUserId;
+    return this._currentUserId !== null;
   }
-
-  // User Premium Status
+  
+  // User preferences and ad management
   private async _checkUserPremiumStatus(): Promise<void> {
     try {
+      if (!this._userPreferencesCollectionExists) {
+        this._isPremiumUser = false;
+        return;
+      }
+      
       if (await this._ensureUserAuthenticated()) {
         // Check premium status from user preferences in database
-        const response = await this._tablesDB.listRows(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_preferences',
-          [
-            Query.equal('userId', this._currentUserId!),
-            Query.limit(1),
-          ],
-        );
-        
-        if (response.rows.length > 0) {
-          this._isPremiumUser = response.rows[0].data['is_premium'] ?? false;
+        try {
+          const response = await this._databases.listDocuments(
+            process.env.NEXT_PUBLIC_DATABASE_ID || '',
+            process.env.NEXT_PUBLIC_USER_PREFERENCES_COLLECTION_ID || 'user_preferences',
+            [
+              Query.equal('userId', this._currentUserId!),
+              Query.limit(1),
+            ]
+          );
+          
+          if (response.documents.length > 0) {
+            const userPrefs = response.documents[0];
+            this._isPremiumUser = userPrefs.is_premium || false;
+          }
+        } catch (e) {
+          console.error('Error checking premium status from database:', e);
+          this._isPremiumUser = false;
         }
       } else {
         this._isPremiumUser = false;
       }
     } catch (e) {
+      console.error('Error in _checkUserPremiumStatus:', e);
       this._isPremiumUser = false;
     }
   }
-
+  
   get isPremiumUser(): boolean {
     return this._isPremiumUser;
   }
-
+  
   async setPremiumUser(isPremium: boolean): Promise<void> {
     this._isPremiumUser = isPremium;
     
-    // Update in database if user is authenticated
-    if (this._currentUserId) {
+    // Update in database if user is authenticated and collection exists
+    if (this._currentUserId && this._userPreferencesCollectionExists) {
       await this._updateUserPremiumStatus(isPremium);
     }
   }
-
+  
   private async _updateUserPremiumStatus(isPremium: boolean): Promise<void> {
+    if (!this._userPreferencesCollectionExists) return;
+    
     try {
       if (await this._ensureUserAuthenticated()) {
-        const response = await this._tablesDB.listRows(
+        const response = await this._databases.listDocuments(
           process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_preferences',
+          process.env.NEXT_PUBLIC_USER_PREFERENCES_COLLECTION_ID || 'user_preferences',
           [
             Query.equal('userId', this._currentUserId!),
             Query.limit(1),
-          ],
+          ]
         );
         
-        if (response.rows.length === 0) {
+        if (response.documents.length === 0) {
           // Create new preferences
-          await this._tablesDB.createRow(
+          await this._databases.createDocument(
             process.env.NEXT_PUBLIC_DATABASE_ID || '',
-            'user_preferences',
+            process.env.NEXT_PUBLIC_USER_PREFERENCES_COLLECTION_ID || 'user_preferences',
             ID.unique(),
             {
-              'userId': this._currentUserId!,
-              'is_premium': isPremium,
-              'ad_preferences': {
-                'view_count': this._adViewCount,
-                'last_ad_time': this._lastAdShownTime?.getTime(),
+              userId: this._currentUserId!,
+              is_premium: isPremium,
+              ad_preferences: {
+                view_count: this._adViewCount,
+                last_ad_time: this._lastAdShownTime?.getTime(),
               },
-            },
+            }
           );
         } else {
           // Update existing preferences
-          await this._tablesDB.updateRow(
+          await this._databases.updateDocument(
             process.env.NEXT_PUBLIC_DATABASE_ID || '',
-            'user_preferences',
-            response.rows[0].$id,
+            process.env.NEXT_PUBLIC_USER_PREFERENCES_COLLECTION_ID || 'user_preferences',
+            response.documents[0].$id,
             {
-              'is_premium': isPremium,
-            },
+              is_premium: isPremium,
+            }
           );
         }
       }
@@ -190,89 +252,73 @@ export class MovieService {
       console.error('Error updating premium status:', e);
     }
   }
-
-  // Ad Management
+  
   private _loadAdViewTracking(): void {
     try {
-      // Load from localStorage on client side
       if (typeof window !== 'undefined') {
-        const adViewCount = localStorage.getItem('adViewCount');
-        if (adViewCount) {
-          this._adViewCount = parseInt(adViewCount, 10);
-        }
-        
-        const lastAdTime = localStorage.getItem('lastAdShownTime');
-        if (lastAdTime) {
-          this._lastAdShownTime = new Date(parseInt(lastAdTime, 10));
+        const savedTracking = localStorage.getItem('adViewTracking');
+        if (savedTracking) {
+          const tracking = JSON.parse(savedTracking);
+          this._adViewCount = tracking.viewCount || 0;
+          this._lastAdShownTime = tracking.lastAdTime ? new Date(tracking.lastAdTime) : null;
         }
       }
     } catch (e) {
+      // Use defaults
       this._adViewCount = 0;
       this._lastAdShownTime = null;
     }
   }
-
+  
   private _updateAdViewTracking(): void {
     try {
-      // Save to localStorage on client side
       if (typeof window !== 'undefined') {
-        localStorage.setItem('adViewCount', this._adViewCount.toString());
-        if (this._lastAdShownTime) {
-          localStorage.setItem('lastAdShownTime', this._lastAdShownTime.getTime().toString());
-        }
+        localStorage.setItem('adViewTracking', JSON.stringify({
+          viewCount: this._adViewCount,
+          lastAdTime: this._lastAdShownTime?.getTime()
+        }));
       }
       
-      // If user is authenticated, also update in database
-      if (this._currentUserId) {
-        this._syncAdViewTrackingToServer();
+      if (this._userPreferencesCollectionExists && this._ensureUserAuthenticated()) {
+        this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_USER_PREFERENCES_COLLECTION_ID || 'user_preferences',
+          [
+            Query.equal('userId', this._currentUserId!),
+            Query.limit(1),
+          ]
+        ).then(response => {
+          if (response.documents.length > 0) {
+            this._databases.updateDocument(
+              process.env.NEXT_PUBLIC_DATABASE_ID || '',
+              process.env.NEXT_PUBLIC_USER_PREFERENCES_COLLECTION_ID || 'user_preferences',
+              response.documents[0].$id,
+              {
+                ad_preferences: {
+                  view_count: this._adViewCount,
+                  last_ad_time: this._lastAdShownTime?.getTime(),
+                }
+              }
+            );
+          }
+        });
       }
     } catch (e) {
       console.error('Error updating ad view tracking:', e);
     }
   }
-
-  private async _syncAdViewTrackingToServer(): Promise<void> {
-    try {
-      if (!await this._ensureUserAuthenticated()) return;
-      
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_preferences',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.limit(1),
-        ],
-      );
-      
-      if (response.rows.length > 0) {
-        await this._tablesDB.updateRow(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_preferences',
-          response.rows[0].$id,
-          {
-            'ad_preferences': {
-              'view_count': this._adViewCount,
-              'last_ad_time': this._lastAdShownTime?.getTime(),
-            },
-          },
-        );
-      }
-    } catch (e) {
-      console.error('Error syncing ad view tracking to server:', e);
-    }
-  }
-
+  
   incrementAdViewCount(): void {
     this._adViewCount++;
     this._updateAdViewTracking();
   }
-
+  
   resetAdViewCount(): void {
     this._adViewCount = 0;
     this._lastAdShownTime = new Date();
     this._updateAdViewTracking();
   }
-
+  
   shouldShowAd(): boolean {
     // Premium users don't see ads
     if (this._isPremiumUser) return false;
@@ -288,8 +334,107 @@ export class MovieService {
     
     return true;
   }
+  
+  // Bunny.net Stream Configuration
+  private _getBunnyApiHeaders(): Record<string, string> {
+    return {
+      'AccessKey': process.env.BUNNY_API_KEY || '',
+      'Content-Type': 'application/json',
+      'User-Agent': 'DJAfroMoviesBox/1.0.0',
+      'Accept': 'application/json',
+    };
+  }
 
-  // Video Source Detection and Processing
+  private _getBunnyStreamingHeaders(): Record<string, string> {
+    // Web browsers need simpler headers
+    return {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    };
+  }
+
+  private _extractBunnyVideoInfo(url: string): Record<string, string> {
+    try {
+      // Handle iframe URLs
+      if (url.includes('iframe.mediadelivery.net/play/')) {
+        const uri = new URL(url);
+        const segments = uri.pathname.split('/').filter(segment => segment);
+        
+        if (segments.length >= 3 && segments[0] === 'play') {
+          const libraryId = segments[1];
+          const videoId = segments[2];
+          
+          return {
+            'libraryId': libraryId,
+            'videoId': videoId,
+            'pullZone': `vz-${libraryId}-17b.b-cdn.net`,
+          };
+        }
+      }
+      
+      // Handle direct CDN URLs
+      else if (url.includes('b-cdn.net')) {
+        const uri = new URL(url);
+        const host = uri.hostname;
+        const pathSegments = uri.pathname.split('/').filter(segment => segment);
+        
+        if (pathSegments.length > 0) {
+          const videoId = pathSegments[0];
+          
+          // Extract library ID from hostname
+          const libraryMatch = /vz-([a-f0-9-]+)-/.exec(host);
+          const libraryId = libraryMatch?.[1] || '';
+          
+          return {
+            'libraryId': libraryId,
+            'videoId': videoId,
+            'pullZone': host,
+          };
+        }
+      }
+      
+      // Handle embed URLs
+      else if (url.includes('iframe.mediadelivery.net/embed/')) {
+        const uri = new URL(url);
+        const segments = uri.pathname.split('/').filter(segment => segment);
+        
+        if (segments.length >= 3 && segments[0] === 'embed') {
+          const libraryId = segments[1];
+          const videoId = segments[2];
+          
+          return {
+            'libraryId': libraryId,
+            'videoId': videoId,
+            'pullZone': `vz-${libraryId}-17b.b-cdn.net`,
+          };
+        }
+      }
+    } catch (e) {
+      // Error extracting video info
+    }
+    
+    return {};
+  }
+
+  private async _getBunnyVideoInfo(libraryId: string, videoId: string): Promise<any | null> {
+    try {
+      const url = `https://video.bunnycdn.com/library/${libraryId}/videos/${videoId}`;
+      
+      const response = await fetch(url, {
+        method: 'GET',
+        headers: this._getBunnyApiHeaders(),
+      });
+      
+      if (response.ok) {
+        return await response.json();
+      } else {
+        return null;
+      }
+    } catch (e) {
+      return null;
+    }
+  }
+
+  // Video URL Processing
   detectVideoSource(url: string): { type: string; url: string; videoId?: string } {
     if (!url) {
       return { type: '', url: '' };
@@ -315,8 +460,9 @@ export class MovieService {
         const uri = new URL(normalizedUrl);
         videoId = uri.searchParams.get('v') || '';
       } else if (normalizedUrl.includes('youtu.be/')) {
-        const segments = new URL(normalizedUrl).pathname.split('/');
-        if (segments.length > 1) {
+        const uri = new URL(normalizedUrl);
+        const segments = uri.pathname.split('/').filter(segment => segment);
+        if (segments.length > 0) {
           videoId = segments[segments.length - 1];
         }
       } else if (/^[a-zA-Z0-9_-]{11}$/.test(normalizedUrl)) {
@@ -325,11 +471,7 @@ export class MovieService {
       }
       
       if (videoId) {
-        return { 
-          type: MovieService.SOURCE_YOUTUBE, 
-          url: normalizedUrl, 
-          videoId 
-        };
+        return { type: MovieService.SOURCE_YOUTUBE, url: normalizedUrl, videoId };
       }
     }
     
@@ -341,113 +483,26 @@ export class MovieService {
       let videoId = '';
       
       if (normalizedUrl.includes('dailymotion.com/embed/video/')) {
-        const segments = new URL(normalizedUrl).pathname.split('/');
-        if (segments.length > 3) {
+        const uri = new URL(normalizedUrl);
+        const segments = uri.pathname.split('/').filter(segment => segment);
+        if (segments.length > 2) {
           videoId = segments[segments.length - 1];
         }
       } else if (normalizedUrl.includes('dai.ly/')) {
-        const segments = new URL(normalizedUrl).pathname.split('/');
-        if (segments.length > 1) {
+        const uri = new URL(normalizedUrl);
+        const segments = uri.pathname.split('/').filter(segment => segment);
+        if (segments.length > 0) {
           videoId = segments[segments.length - 1];
         }
       }
       
       if (videoId) {
-        return { 
-          type: MovieService.SOURCE_DAILYMOTION, 
-          url: normalizedUrl, 
-          videoId 
-        };
+        return { type: MovieService.SOURCE_DAILYMOTION, url: normalizedUrl, videoId };
       }
     }
     
     // Unknown URL type - try to handle as Bunny Stream
     return { type: MovieService.SOURCE_BUNNY, url: normalizedUrl };
-  }
-
-  // Bunny.net helpers
-  private _getBunnyApiHeaders(): Record<string, string> {
-    return {
-      'AccessKey': process.env.BUNNY_API_KEY || '',
-      'Content-Type': 'application/json',
-      'User-Agent': 'DJAfroMoviesWeb/1.0.0',
-      'Accept': 'application/json',
-    };
-  }
-
-  private _getBunnyStreamingHeaders(): Record<string, string> {
-    // Web optimized headers
-    return {
-      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
-      'Accept': '*/*',
-      'Accept-Language': 'en-US,en;q=0.9',
-      'Accept-Encoding': 'identity',
-      'Referer': 'https://iframe.mediadelivery.net/',
-      'Origin': 'https://iframe.mediadelivery.net',
-    };
-  }
-
-  private _extractBunnyVideoInfo(url: string): Record<string, string> {
-    try {
-      // Handle iframe URLs
-      if (url.includes('iframe.mediadelivery.net/play/')) {
-        const uri = new URL(url);
-        const segments = uri.pathname.split('/');
-        
-        if (segments.length >= 4 && segments[1] === 'play') {
-          const libraryId = segments[2];
-          const videoId = segments[3];
-          
-          return {
-            'libraryId': libraryId,
-            'videoId': videoId,
-            'pullZone': `vz-${libraryId}-17b.b-cdn.net`,
-          };
-        }
-      }
-      
-      // Handle direct CDN URLs
-      else if (url.includes('b-cdn.net')) {
-        const uri = new URL(url);
-        const host = uri.hostname;
-        const pathSegments = uri.pathname.split('/');
-        
-        if (pathSegments.length > 1) {
-          const videoId = pathSegments[1];
-          
-          // Extract library ID from hostname
-          const libraryMatch = /vz-([a-f0-9-]+)-/.exec(host);
-          const libraryId = libraryMatch ? libraryMatch[1] : '';
-          
-          return {
-            'libraryId': libraryId,
-            'videoId': videoId,
-            'pullZone': host,
-          };
-        }
-      }
-      
-      // Handle embed URLs
-      else if (url.includes('iframe.mediadelivery.net/embed/')) {
-        const uri = new URL(url);
-        const segments = uri.pathname.split('/');
-        
-        if (segments.length >= 4 && segments[1] === 'embed') {
-          const libraryId = segments[2];
-          const videoId = segments[3];
-          
-          return {
-            'libraryId': libraryId,
-            'videoId': videoId,
-            'pullZone': `vz-${libraryId}-17b.b-cdn.net`,
-          };
-        }
-      }
-    } catch (e) {
-      console.error('Error extracting Bunny video info:', e);
-    }
-    
-    return {};
   }
 
   async formatVideoUrls(baseUrl: string, videoId: string): Promise<Record<string, string>> {
@@ -488,7 +543,7 @@ export class MovieService {
       
       // Handle Bunny.net URLs
       else {
-        // Check if it's already a Bunny CDN URL - use directly
+        // Check if it's already a Bunny CDN URL - use directly!
         if (baseUrl.includes('b-cdn.net')) {
           const videoUrls: Record<string, string> = {};
           
@@ -533,16 +588,15 @@ export class MovieService {
           return {'original': baseUrl, 'sourceType': MovieService.SOURCE_BUNNY};
         }
         
-        const libraryId = videoInfo['libraryId'];
-        const bunnyVideoId = videoInfo['videoId'];
-        const pullZone = videoInfo['pullZone'];
+        const libraryId = videoInfo['libraryId']!;
+        const bunnyVideoId = videoInfo['videoId']!;
+        const pullZone = videoInfo['pullZone']!;
         
-        // Generate video URLs optimized for web
-        const videoUrls: Record<string, string> = {
-          'sourceType': MovieService.SOURCE_BUNNY
-        };
+        // Generate video URLs based on platform
+        const videoUrls: Record<string, string> = {};
+        videoUrls['sourceType'] = MovieService.SOURCE_BUNNY;
         
-        // For web, prefer MP4 but provide HLS as an option
+        // For web, prefer MP4 over HLS due to browser limitations
         videoUrls['720p'] = `https://${pullZone}/${bunnyVideoId}/play_720p.mp4`;
         videoUrls['480p'] = `https://${pullZone}/${bunnyVideoId}/play_480p.mp4`;
         videoUrls['360p'] = `https://${pullZone}/${bunnyVideoId}/play_360p.mp4`;
@@ -554,8 +608,8 @@ export class MovieService {
         
         return videoUrls;
       }
+      
     } catch (e) {
-      console.error('Error formatting video URLs:', e);
       return {'original': baseUrl, 'sourceType': MovieService.SOURCE_BUNNY};
     }
   }
@@ -574,6 +628,8 @@ export class MovieService {
         return url;
       }
       
+      // For Bunny Stream, use existing logic
+      
       // DIRECT BUNNY URLs should be used as-is
       if (url.includes('b-cdn.net')) {
         return url;
@@ -581,21 +637,21 @@ export class MovieService {
       
       const videoUrls = await this.formatVideoUrls(url, '');
       
-      // Choose best format for web platform
+      // For web, prefer MP4 formats
       if (videoUrls['720p']) {
         return videoUrls['720p'];
-      }
-      if (videoUrls['hls']) {
-        return videoUrls['hls'];
       }
       if (videoUrls['480p']) {
         return videoUrls['480p'];
       }
+      if (videoUrls['hls']) {
+        return videoUrls['hls'];
+      }
       
       // Fallback
       return videoUrls['original'] || url;
+      
     } catch (e) {
-      console.error('Error formatting video URL:', e);
       return url;
     }
   }
@@ -610,7 +666,7 @@ export class MovieService {
       return {};
     }
     
-    // For Bunny Stream, use bunny headers
+    // For Bunny Stream, use existing logic
     if (videoUrl.includes('b-cdn.net') || videoUrl.includes('bunnycdn.com')) {
       return this._getBunnyStreamingHeaders();
     }
@@ -632,7 +688,7 @@ export class MovieService {
         return true;
       }
       
-      // For Bunny Stream, test the URL
+      // For Bunny Stream, use existing logic
       const response = await fetch(url, {
         method: 'HEAD',
         headers: this.getStreamingHeaders(url),
@@ -640,25 +696,38 @@ export class MovieService {
       
       return response.status === 200 || response.status === 206;
     } catch (e) {
-      console.error('Error testing video URL:', e);
       return false;
     }
   }
 
   // Movie Fetching Methods
-  async getMovieById(movieId: string): Promise<any> {
+  async getMovieById(movieId: string): Promise<any | null> {
     try {
-      // Use the TablesDB API to get the row
-      const response = await this._tablesDB.getRow(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
-        movieId,
-      );
-      
-      const processedMovies = await this._processMovieDocumentsAsync([response]);
-      return processedMovies.length > 0 ? processedMovies[0] : null;
+      // Try using TablesDB first (new API)
+      try {
+        const response = await this._tablesDB.getRow(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          movieId
+        );
+        
+        const processedMovies = await this._processMovieDocumentsAsync([response]);
+        return processedMovies.length > 0 ? processedMovies[0] : null;
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        const response = await this._databases.getDocument(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          movieId
+        );
+        
+        const processedMovies = await this._processMovieDocumentsAsync([response]);
+        return processedMovies.length > 0 ? processedMovies[0] : null;
+      }
     } catch (e) {
-      console.error('Error getting movie by ID:', e);
+      console.error('Error fetching movie by ID:', e);
       return null;
     }
   }
@@ -668,7 +737,7 @@ export class MovieService {
       'id': 'empty_state',
       'title': 'No Movies Available',
       'description': 'Check back later for new content.',
-      'posterUrl': '/images/poster1.jpg',
+      'posterUrl': 'assets/images/poster1.jpg',
       'rating': 0.0,
       'year': new Date().getFullYear().toString(),
       'duration': '0m',
@@ -693,21 +762,36 @@ export class MovieService {
     }
     
     try {
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
-        [
-          Query.orderDesc('rating'),
-          Query.limit(15),
-        ],
-      );
+      let response;
       
-      const result = await this._processMovieDocumentsAsync(response.rows);
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      const result = await this._processMovieDocumentsAsync(response.documents);
+      
+      // Sort by rating and limit to 15
+      result.sort((a, b) => b.rating - a.rating);
+      const limitedResult = result.slice(0, 15);
       
       // For non-premium users, inject banner ad placeholder into the results
-      if (!this._isPremiumUser && result.length > 5) {
+      if (!this._isPremiumUser && limitedResult.length > 5) {
         // Inject an ad card every 5 movies
-        result.splice(5, 0, {
+        limitedResult.splice(5, 0, {
           'id': 'ad_trending_banner',
           'isAdPlaceholder': true,
           'adType': 'banner',
@@ -715,16 +799,81 @@ export class MovieService {
       }
       
       // Cache the result
-      this._movieListCache.set(cacheKey, result);
-      this._cacheExpiry.set(cacheKey, new Date(Date.now() + this._cacheDuration));
+      this._movieListCache.set(cacheKey, limitedResult);
+      this._cacheExpiry.set(cacheKey, new Date(Date.now() + MovieService._cacheDuration));
       
-      return result;
+      return limitedResult;
     } catch (e) {
-      console.error('Error getting trending movies:', e);
+      console.error('Error fetching trending movies:', e);
       return [];
     }
   }
 
+  async getDjAfroSpecials(): Promise<any[]> {
+    const cacheKey = 'dj_afro_specials';
+    
+    // Check cache first
+    if (this._movieListCache.has(cacheKey)) {
+      const expiry = this._cacheExpiry.get(cacheKey);
+      if (expiry && expiry > new Date()) {
+        return [...this._movieListCache.get(cacheKey)!];
+      }
+    }
+    
+    try {
+      let response;
+      
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      const result = await this._processMovieDocumentsAsync(response.documents);
+      
+      // Sort by rating
+      result.sort((a, b) => b.rating - a.rating);
+      
+      // For non-premium users, inject ad placeholders into the results
+      if (!this._isPremiumUser && result.length > 20) {
+        // Add native ad after 8th movie
+        result.splice(8, 0, {
+          'id': 'ad_specials_native_1',
+          'isAdPlaceholder': true,
+          'adType': 'native',
+        });
+        
+        // Add banner ad after 20th movie
+        result.splice(20, 0, {
+          'id': 'ad_specials_banner_1',
+          'isAdPlaceholder': true,
+          'adType': 'banner',
+        });
+      }
+      
+      // Cache the result
+      this._movieListCache.set(cacheKey, result);
+      this._cacheExpiry.set(cacheKey, new Date(Date.now() + MovieService._cacheDuration));
+      
+      return result;
+    } catch (e) {
+      console.error('Error fetching DJ Afro specials:', e);
+      return [];
+    }
+  }
+  
   async getNewReleases(): Promise<any[]> {
     const cacheKey = 'new_releases';
     
@@ -737,24 +886,39 @@ export class MovieService {
     }
     
     try {
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
-        [
-          Query.orderDesc('$createdAt'),
-          Query.limit(12),
-        ],
-      );
+      let response;
       
-      const result = await this._processMovieDocumentsAsync(response.rows);
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      const result = await this._processMovieDocumentsAsync(response.documents);
+      
+      // Sort by creation date
+      result.sort((a, b) => new Date(b.$createdAt).getTime() - new Date(a.$createdAt).getTime());
+      const limitedResult = result.slice(0, 12);
       
       // Cache the result
-      this._movieListCache.set(cacheKey, result);
-      this._cacheExpiry.set(cacheKey, new Date(Date.now() + this._cacheDuration));
+      this._movieListCache.set(cacheKey, limitedResult);
+      this._cacheExpiry.set(cacheKey, new Date(Date.now() + MovieService._cacheDuration));
       
-      return result;
+      return limitedResult;
     } catch (e) {
-      console.error('Error getting new releases:', e);
+      console.error('Error fetching new releases:', e);
       return [];
     }
   }
@@ -771,29 +935,155 @@ export class MovieService {
     }
     
     try {
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
-        [
-          // Use proper array contains query
-          Query.equal('genre', [genre]),
-          Query.limit(15),
-        ],
-      );
+      let response;
       
-      const result = await this._processMovieDocumentsAsync(response.rows);
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      // Filter documents by genre manually
+      const filtered = response.documents.filter((doc: any) => {
+        if (!doc.genre) return false;
+        if (Array.isArray(doc.genre)) {
+          return doc.genre.includes(genre);
+        }
+        if (typeof doc.genre === 'string') {
+          return doc.genre.split(',').map(g => g.trim()).includes(genre);
+        }
+        return false;
+      }).slice(0, 15);
+      
+      const result = await this._processMovieDocumentsAsync(filtered);
       
       // Cache the result
       this._movieListCache.set(cacheKey, result);
-      this._cacheExpiry.set(cacheKey, new Date(Date.now() + this._cacheDuration));
+      this._cacheExpiry.set(cacheKey, new Date(Date.now() + MovieService._cacheDuration));
       
       return result;
     } catch (e) {
-      console.error('Error getting movies by genre:', e);
+      console.error('Error fetching movies by genre:', e);
+      return [];
+    }
+  }
+  
+  async getPopularDownloads(): Promise<any[]> {
+    const cacheKey = 'popular_downloads';
+    
+    // Check cache first
+    if (this._movieListCache.has(cacheKey)) {
+      const expiry = this._cacheExpiry.get(cacheKey);
+      if (expiry && expiry > new Date()) {
+        return [...this._movieListCache.get(cacheKey)!];
+      }
+    }
+    
+    try {
+      let response;
+      
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      // Sort by download count
+      const sorted = response.documents.sort((a: any, b: any) => {
+        const countA = a.download_count || 0;
+        const countB = b.download_count || 0;
+        return countB - countA;
+      }).slice(0, 10);
+      
+      const result = await this._processMovieDocumentsAsync(sorted);
+      
+      // Cache the result
+      this._movieListCache.set(cacheKey, result);
+      this._cacheExpiry.set(cacheKey, new Date(Date.now() + MovieService._cacheDuration));
+      
+      return result;
+    } catch (e) {
+      console.error('Error fetching popular downloads:', e);
       return [];
     }
   }
 
+  // Modified method to get ALL featured movies and randomize display
+  private async _getAllFeaturedMovies(): Promise<any[]> {
+    try {
+      // Check if we already have a cached list of all featured movies
+      if (this._allFeaturedMoviesCache && this._featuredMoviesCacheTimestamp) {
+        const cacheAge = Date.now() - this._featuredMoviesCacheTimestamp.getTime();
+        
+        // Use cached list if it's still fresh (less than the cache duration)
+        if (cacheAge < MovieService.FEATURED_CACHE_DURATION) {
+          return this._allFeaturedMoviesCache;
+        }
+      }
+      
+      // Fetch all featured movies with a higher limit
+      let response;
+      
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      // Filter documents by is_featured manually
+      const featured = response.documents.filter((doc: any) => doc.is_featured === true);
+      
+      const result = await this._processMovieDocumentsAsync(featured.slice(0, 50));
+      
+      // Update cache
+      this._allFeaturedMoviesCache = result;
+      this._featuredMoviesCacheTimestamp = new Date();
+      
+      return result;
+    } catch (e) {
+      console.error('Error fetching all featured movies:', e);
+      // If there's an error, return empty list or fallback
+      return this._getFallbackFeaturedMovies();
+    }
+  }
+
+  // Modified method to get a random selection of featured movies
   async getFeaturedMovies(): Promise<any[]> {
     try {
       // Check if we need to generate a new featured selection
@@ -824,7 +1114,7 @@ export class MovieService {
           
           // Select random movies until we have enough or run out
           while (selectedMovies.length < MovieService.FEATURED_SELECTION_SIZE && availableMovies.length > 0) {
-            const randomIndex = Math.floor(this._random() * availableMovies.length);
+            const randomIndex = Math.floor(Math.random() * availableMovies.length);
             selectedMovies.push(availableMovies.splice(randomIndex, 1)[0]);
           }
           
@@ -836,87 +1126,46 @@ export class MovieService {
         }
       }
       
-      return this._currentFeaturedSelection!;
+      return this._currentFeaturedSelection || [];
     } catch (e) {
-      console.error('Error getting featured movies:', e);
+      console.error('Error fetching featured movies:', e);
       return this._getFallbackFeaturedMovies();
     }
-  }
-
-  async _getAllFeaturedMovies(): Promise<any[]> {
-    try {
-      // Check if we already have a cached list of all featured movies
-      if (this._allFeaturedMoviesCache && this._featuredMoviesCacheTimestamp) {
-        const cacheAge = Date.now() - this._featuredMoviesCacheTimestamp.getTime();
-        
-        // Use cached list if it's still fresh
-        if (cacheAge < MovieService.FEATURED_CACHE_DURATION) {
-          return this._allFeaturedMoviesCache;
-        }
-      }
-      
-      // Fetch all featured movies with a higher limit
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
-        [
-          Query.equal('is_featured', true),
-          Query.limit(50), // Get up to 50 featured movies
-        ],
-      );
-      
-      const result = await this._processMovieDocumentsAsync(response.rows);
-      
-      // Update cache
-      this._allFeaturedMoviesCache = result;
-      this._featuredMoviesCacheTimestamp = new Date();
-      
-      return result;
-    } catch (e) {
-      console.error('Error getting all featured movies:', e);
-      return this._getFallbackFeaturedMovies();
-    }
-  }
-
-  private _getFallbackFeaturedMovies(): any[] {
-    return [
-      {
-        'id': 'fallback_featured_1',
-        'title': 'Action Hero Returns',
-        'description': 'The ultimate action-packed thriller.',
-        'imageAsset': '/images/banner1.jpg',
-        'posterUrl': '/images/poster1.jpg',
-        'rating': 8.5,
-        'year': '2023',
-        'duration': '2h 15m',
-        'genres': ['Action', 'Thriller'],
-        'isPremium': false,
-        'videoUrl': '',
-        'videoUrls': {'sourceType': MovieService.SOURCE_BUNNY},
-        'videoSourceType': MovieService.SOURCE_BUNNY,
-        'streamingHeaders': {},
-        'isReady': false,
-        'progress': 0.0,
-        'userRating': 0.0,
-        'isWishlisted': false,
-      },
-    ];
   }
 
   async searchMovies(query: string): Promise<any[]> {
     try {
       if (!query.trim()) return [];
       
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
-        [
-          Query.search('title', query.trim()),
-          Query.limit(20),
-        ],
-      );
+      let response;
       
-      return await this._processMovieDocumentsAsync(response.rows);
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      // Manual search since we can't use appwrite search on client
+      const searchTerms = query.trim().toLowerCase().split(/\s+/);
+      const filtered = response.documents.filter((doc: any) => {
+        if (!doc.title) return false;
+        const title = doc.title.toLowerCase();
+        return searchTerms.some(term => title.includes(term));
+      }).slice(0, 20);
+      
+      return await this._processMovieDocumentsAsync(filtered);
     } catch (e) {
       console.error('Error searching movies:', e);
       return [];
@@ -935,34 +1184,72 @@ export class MovieService {
     genre?: string;
     sortBy?: string;
     ascending?: boolean;
-  } = {}): Promise<any[]> {
+  }): Promise<any[]> {
     try {
-      const queries: any[] = [];
+      let response;
       
-      // Add genre filter if specified
+      try {
+        // Try TablesDB first
+        response = await this._tablesDB.listRows(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      } catch (tablesError) {
+        console.log('TablesDB API failed, falling back to legacy API', tablesError);
+        
+        // Fallback to legacy API
+        response = await this._databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID || '',
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
+          []
+        );
+      }
+      
+      let filtered = response.documents;
+      
+      // Filter by genre if specified
       if (genre && genre !== 'All') {
-        // Use proper array contains query
-        queries.push(Query.equal('genre', [genre]));
+        filtered = filtered.filter((doc: any) => {
+          if (!doc.genre) return false;
+          if (Array.isArray(doc.genre)) {
+            return doc.genre.includes(genre);
+          }
+          if (typeof doc.genre === 'string') {
+            return doc.genre.split(',').map(g => g.trim()).includes(genre);
+          }
+          return false;
+        });
       }
       
-      // Add sorting
-      if (ascending) {
-        queries.push(Query.orderAsc(sortBy));
-      } else {
-        queries.push(Query.orderDesc(sortBy));
-      }
+      // Sort results
+      filtered.sort((a: any, b: any) => {
+        let valA = a[sortBy];
+        let valB = b[sortBy];
+        
+        // Handle special cases
+        if (sortBy === '$createdAt' || sortBy === '$updatedAt') {
+          valA = new Date(valA).getTime();
+          valB = new Date(valB).getTime();
+        }
+        
+        // Handle strings
+        if (typeof valA === 'string' && typeof valB === 'string') {
+          return ascending 
+            ? valA.localeCompare(valB) 
+            : valB.localeCompare(valA);
+        }
+        
+        // Handle numbers
+        return ascending 
+          ? (valA ?? 0) - (valB ?? 0) 
+          : (valB ?? 0) - (valA ?? 0);
+      });
       
-      // Add pagination
-      queries.push(Query.offset(offset));
-      queries.push(Query.limit(limit));
+      // Apply pagination
+      const paginatedResults = filtered.slice(offset, offset + limit);
       
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID || '',
-        queries,
-      );
-      
-      const result = await this._processMovieDocumentsAsync(response.rows);
+      const result = await this._processMovieDocumentsAsync(paginatedResults);
       
       // For non-premium users, inject ad placeholders at regular intervals
       if (!this._isPremiumUser && result.length > 10) {
@@ -991,501 +1278,81 @@ export class MovieService {
       
       return result;
     } catch (e) {
-      console.error('Error getting all movies:', e);
+      console.error('Error fetching all movies:', e);
       return [];
     }
   }
-
-  // User Progress & Library Management
-  async updateMovieProgress(movieId: string, progress: number): Promise<void> {
-    try {
-      const now = Date.now();
-      
-      // Update local cache first for immediate response
-      this._progressCache.set(movieId, {
-        'progress': progress,
-        'lastWatchedAt': now,
-        'needsSync': true,
-      });
-      
-      // If user is logged in, sync with server
-      if (await this._ensureUserAuthenticated()) {
-        await this._syncMovieProgressToServer(movieId, progress, now);
-      }
-    } catch (e) {
-      console.error('Error updating movie progress:', e);
-    }
-  }
-
-  async _syncMovieProgressToServer(
-    movieId: string, 
-    progress: number, 
-    timestamp: number
-  ): Promise<void> {
-    try {
-      if (!(await this._ensureUserAuthenticated())) return;
-      
-      // Check if entry already exists using TablesDB API
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_library',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.equal('movieId', movieId),
-          Query.limit(1),
-        ],
-      );
-      
-      if (response.rows.length === 0) {
-        // Create new entry using TablesDB API
-        await this._tablesDB.createRow(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_library',
-          ID.unique(),
-          {
-            'userId': this._currentUserId!,
-            'movieId': movieId,
-            'type': ['progress'], // Use array instead of string
-            'progress': progress,
-            'lastWatchedAt': timestamp,
-            'isWishlisted': false, // Default values for required fields
-            'rating': 0.0,
-          },
-        );
-      } else {
-        // Update existing entry using TablesDB API
-        const existingRow = response.rows[0];
-        const currentTypes = Array.isArray(existingRow.data['type']) 
-          ? existingRow.data['type'] as string[]
-          : [];
-        
-        // Add 'progress' to types if not already present
-        const newTypes = [...currentTypes];
-        if (!newTypes.includes('progress')) {
-          newTypes.push('progress');
-        }
-        
-        await this._tablesDB.updateRow(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_library',
-          existingRow.$id,
-          {
-            'progress': progress,
-            'lastWatchedAt': timestamp,
-            'type': newTypes,
-          },
-        );
-      }
-      
-      // Mark as synced in local cache
-      const cachedData = this._progressCache.get(movieId);
-      if (cachedData) {
-        cachedData.needsSync = false;
-        this._progressCache.set(movieId, cachedData);
-      }
-    } catch (e) {
-      console.error('Error syncing movie progress to server:', e);
-    }
-  }
-
-  async getMovieProgress(movieId: string): Promise<number> {
-    try {
-      // Check local cache first for immediate response
-      const cachedData = this._progressCache.get(movieId);
-      if (cachedData) {
-        return cachedData.progress as number;
-      }
-      
-      // If user is logged in, try to get from server
-      if (await this._ensureUserAuthenticated()) {
-        const response = await this._tablesDB.listRows(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_library',
-          [
-            Query.equal('userId', this._currentUserId!),
-            Query.equal('movieId', movieId),
-            Query.equal('type', 'progress'),
-            Query.limit(1),
-          ],
-        );
-        
-        if (response.rows.length > 0) {
-          const progress = response.rows[0].data['progress'] ?? 0.0;
-          return typeof progress === 'number' ? progress : 0.0;
-        }
-      }
-      
-      return 0.0;
-    } catch (e) {
-      console.error('Error getting movie progress:', e);
-      return 0.0;
-    }
-  }
-
-  async toggleWishlist(movieId: string, add: boolean): Promise<boolean> {
-    try {
-      if (!(await this._ensureUserAuthenticated())) {
-        return false;
-      }
-      
-      // Check if any entry exists for this user and movie
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_library',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.equal('movieId', movieId),
-          Query.limit(1),
-        ],
-      );
-      
-      if (response.rows.length === 0) {
-        // Create new entry with wishlist status
-        await this._tablesDB.createRow(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_library',
-          ID.unique(),
-          {
-            'userId': this._currentUserId!,
-            'movieId': movieId,
-            'type': add ? ['wishlist'] : [], // Use array instead of string
-            'isWishlisted': add,
-            'progress': 0.0, // Default values for other fields
-            'rating': 0.0,
-            'lastWatchedAt': Date.now(),
-          },
-        );
-      } else {
-        // Update existing entry
-        const existingRow = response.rows[0];
-        const currentTypes = Array.isArray(existingRow.data['type'])
-          ? existingRow.data['type'] as string[]
-          : [];
-        
-        // Update type array based on wishlist action
-        let newTypes: string[] = [];
-        if (add) {
-          // Add 'wishlist' to types if not already present
-          newTypes = [...currentTypes];
-          if (!newTypes.includes('wishlist')) {
-            newTypes.push('wishlist');
-          }
-        } else {
-          // Remove 'wishlist' from types
-          newTypes = currentTypes.filter(type => type !== 'wishlist');
-        }
-        
-        await this._tablesDB.updateRow(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_library',
-          existingRow.$id,
-          {
-            'isWishlisted': add,
-            'type': newTypes,
-          },
-        );
-      }
-      
-      return true;
-    } catch (e) {
-      console.error('Error toggling wishlist:', e);
-      return false;
-    }
-  }
-
-  async isMovieWishlisted(movieId: string): Promise<boolean> {
-    try {
-      if (!(await this._ensureUserAuthenticated())) return false;
-      
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_library',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.equal('movieId', movieId),
-          Query.equal('isWishlisted', true),
-          Query.limit(1),
-        ],
-      );
-      
-      return response.rows.length > 0;
-    } catch (e) {
-      console.error('Error checking if movie is wishlisted:', e);
-      return false;
-    }
-  }
-
-  async rateMovie(movieId: string, rating: number): Promise<boolean> {
-    try {
-      if (!(await this._ensureUserAuthenticated())) {
-        return false;
-      }
-      
-      // Check if any entry exists for this user and movie
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_library',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.equal('movieId', movieId),
-          Query.limit(1),
-        ],
-      );
-      
-      if (response.rows.length === 0) {
-        // Create new entry with rating
-        await this._tablesDB.createRow(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_library',
-          ID.unique(),
-          {
-            'userId': this._currentUserId!,
-            'movieId': movieId,
-            'type': ['rating'], // Use array instead of string
-            'rating': rating,
-            'progress': 0.0, // Default values
-            'isWishlisted': false,
-            'lastWatchedAt': Date.now(),
-          },
-        );
-      } else {
-        // Update existing entry
-        const existingRow = response.rows[0];
-        const currentTypes = Array.isArray(existingRow.data['type'])
-          ? existingRow.data['type'] as string[]
-          : [];
-        
-        // Add 'rating' to types if not already present
-        const newTypes = [...currentTypes];
-        if (!newTypes.includes('rating')) {
-          newTypes.push('rating');
-        }
-        
-        await this._tablesDB.updateRow(
-          process.env.NEXT_PUBLIC_DATABASE_ID || '',
-          'user_library',
-          existingRow.$id,
-          {
-            'rating': rating,
-            'type': newTypes, // Use array instead of string
-          },
-        );
-      }
-      
-      return true;
-    } catch (e) {
-      console.error('Error rating movie:', e);
-      return false;
-    }
-  }
-
-  async getMovieRating(movieId: string): Promise<number> {
-    try {
-      if (!(await this._ensureUserAuthenticated())) return 0.0;
-      
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_library',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.equal('movieId', movieId),
-          Query.isNotNull('rating'),
-          Query.greaterThan('rating', 0.0),
-          Query.limit(1),
-        ],
-      );
-      
-      if (response.rows.length > 0) {
-        const rating = response.rows[0].data['rating'] ?? 0.0;
-        return typeof rating === 'number' ? rating : 0.0;
-      }
-      
-      return 0.0;
-    } catch (e) {
-      console.error('Error getting movie rating:', e);
-      return 0.0;
-    }
-  }
-
-  async getContinueWatchingMovies(): Promise<any[]> {
-    try {
-      if (!(await this._ensureUserAuthenticated())) return [];
-      
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_library',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.greaterThan('progress', 0.0),
-          Query.lessThan('progress', 0.95), // Not completely watched
-          Query.orderDesc('lastWatchedAt'),
-          Query.limit(10),
-        ],
-      );
-      
-      const result: any[] = [];
-      const futures: Promise<void>[] = [];
-      const movieDataMap: Record<string, any> = {};
-      
-      // First, collect all movie IDs and fetch them in parallel
-      for (const row of response.rows) {
-        const movieId = row.data['movieId'] as string;
-        futures.push(this.getMovieById(movieId).then((movie) => {
-          if (movie) {
-            movieDataMap[movieId] = movie;
-          }
-        }));
-      }
-      
-      // Wait for all movie fetches to complete
-      await Promise.all(futures);
-      
-      // Now process the library rows with the fetched movie data
-      for (const row of response.rows) {
-        const movieId = row.data['movieId'] as string;
-        const movie = movieDataMap[movieId];
-        
-        if (movie) {
-          const progress = row.data['progress'] ?? 0.0;
-          const lastWatchedAt = row.data['lastWatchedAt'] 
-            ? new Date(row.data['lastWatchedAt'])
-            : null;
-          
-          result.push({
-            ...movie,
-            'progress': progress,
-            'lastWatchedAt': lastWatchedAt,
-            'libraryItemId': row.$id,
-          });
-        }
-      }
-      
-      return result;
-    } catch (e) {
-      console.error('Error getting continue watching movies:', e);
+  
+  // Enhanced Movie Processing
+  private async _processMovieDocumentsAsync(documents: any[]): Promise<any[]> {
+    if (!documents || documents.length === 0) {
       return [];
     }
-  }
-
-  async getWishlistMovies(): Promise<any[]> {
-    try {
-      if (!(await this._ensureUserAuthenticated())) return [];
-      
-      const response = await this._tablesDB.listRows(
-        process.env.NEXT_PUBLIC_DATABASE_ID || '',
-        'user_library',
-        [
-          Query.equal('userId', this._currentUserId!),
-          Query.equal('isWishlisted', true),
-          Query.orderDesc('$createdAt'),
-          Query.limit(50),
-        ],
-      );
-      
-      const result: any[] = [];
-      const futures: Promise<void>[] = [];
-      const movieDataMap: Record<string, any> = {};
-      
-      // First, collect all movie IDs and fetch them in parallel
-      for (const row of response.rows) {
-        const movieId = row.data['movieId'] as string;
-        futures.push(this.getMovieById(movieId).then((movie) => {
-          if (movie) {
-            movieDataMap[movieId] = movie;
-          }
-        }));
-      }
-      
-      // Wait for all movie fetches to complete
-      await Promise.all(futures);
-      
-      // Now process the library rows with the fetched movie data
-      for (const row of response.rows) {
-        const movieId = row.data['movieId'] as string;
-        const movie = movieDataMap[movieId];
-        
-        if (movie) {
-          result.push({
-            ...movie,
-            'libraryItemId': row.$id,
-            'addedAt': row.$createdAt,
-          });
-        }
-      }
-      
-      return result;
-    } catch (e) {
-      console.error('Error getting wishlist movies:', e);
-      return [];
-    }
-  }
-
-  // Helper Methods
-  private async _processMovieDocumentsAsync(rows: any[]): Promise<any[]> {
+    
     const processedMovies: any[] = [];
-    const futures: Promise<void>[] = [];
     const movieData: Record<string, any> = {};
     
     // Phase 1: Process basic movie data
-    for (const row of rows) {
+    for (const doc of documents) {
       try {
-        const movieId = row.$id;
+        if (!doc || !doc.$id) continue; // Skip invalid documents
+        
+        const movieId = doc.$id;
         
         // Genre parsing
         let genres: string[] = [];
-        if (row.data['genre']) {
-          if (Array.isArray(row.data['genre'])) {
-            genres = row.data['genre'] as string[];
-          } else if (typeof row.data['genre'] === 'string') {
-            genres = row.data['genre']
-              .split(',')
-              .map((g: string) => g.trim())
-              .filter((g: string) => g.length > 0);
+        if (doc.genre) {
+          if (Array.isArray(doc.genre)) {
+            genres = doc.genre;
+          } else if (typeof doc.genre === 'string') {
+            genres = doc.genre
+                .split(',')
+                .map((g: string) => g.trim())
+                .filter((g: string) => g);
           }
         }
         if (genres.length === 0) genres = ['Action'];
 
         // Process video URL with enhanced error handling
-        const rawVideoUrl = row.data['video_url'] ?? '';
+        const rawVideoUrl = doc.video_url || '';
         
         // Create basic movie object
-        const movie: Record<string, any> = {
+        const movie: any = {
           'id': movieId,
-          'title': row.data['title'] ?? 'Untitled Movie',
-          'description': row.data['description'] ??
-              row.data['ai_summary'] ??
+          'title': doc.title || 'Untitled Movie',
+          'description': doc.description ||
+              doc.ai_summary ||
               'No description available',
-          'rating': this._parseToDouble(row.data['rating']) ?? 7.5,
-          'year': row.data['release_year']?.toString() ??
+          'rating': this._parseToDouble(doc.rating) ?? 7.5,
+          'year': doc.release_year?.toString() ||
               new Date().getFullYear().toString(),
-          'duration': row.data['duration'] ?? '2h 0m',
+          'duration': doc.duration || '2h 0m',
           'genres': genres,
-          'isPremium': row.data['premium_only'] ?? false,
+          'isPremium': doc.premium_only ?? false,
           'rawVideoUrl': rawVideoUrl,
-          'isFeatured': row.data['is_featured'] ?? false,
-          'isTrending': row.data['is_trending'] ?? false,
-          'viewCount': row.data['view_count'] ?? 0,
-          'downloadCount': row.data['download_count'] ?? 0,
+          'isFeatured': doc.is_featured ?? false,
+          'isTrending': doc.is_trending ?? false,
+          'viewCount': doc.view_count ?? 0,
+          'downloadCount': doc.download_count ?? 0,
+          '$createdAt': doc.$createdAt,
+          '$updatedAt': doc.$updatedAt,
         };
 
         // Poster/image handling
-        if (row.data['poster_url'] && row.data['poster_url'].length > 0) {
-          movie['posterUrl'] = row.data['poster_url'];
+        if (doc.poster_url && doc.poster_url.toString()) {
+          movie['posterUrl'] = doc.poster_url;
         } else {
-          const fallbackIndex = Math.abs(movieId.split('').reduce((a: any, b: string) => {
-            return a + b.charCodeAt(0);
-          }, 0) % 4) + 1;
-          movie['posterUrl'] = `/images/poster${fallbackIndex}.jpg`;
+          const fallbackIndex = (movie['id'].split('').reduce((acc: number, char: string) => acc + char.charCodeAt(0), 0) % 4) + 1;
+          movie['posterUrl'] = `assets/images/poster${fallbackIndex}.jpg`;
         }
         
         movieData[movieId] = movie;
         
-        // Phase 2: Prepare async operations for each movie
+        // Phase 2: Process video URL (synchronously for web version)
         if (rawVideoUrl) {
           // Handle video URL formatting
-          futures.push(this._processVideoUrl(movieId, rawVideoUrl).then((videoData) => {
-            Object.assign(movieData[movieId], videoData);
-          }));
+          const videoData = await this._processVideoUrl(movieId, rawVideoUrl);
+          Object.assign(movieData[movieId], videoData);
         } else {
           Object.assign(movieData[movieId], {
             'videoUrl': '',
@@ -1496,34 +1363,25 @@ export class MovieService {
           });
         }
         
-        // Add user data if authenticated
-        if (this._currentUserId) {
-          // We'll bundle these requests to reduce load
-          futures.push(this._getUserDataForMovie(movieId).then((userData) => {
-            Object.assign(movieData[movieId], userData);
-          }));
-        } else {
-          Object.assign(movieData[movieId], {
-            'progress': 0.0,
-            'userRating': 0.0,
-            'isWishlisted': false,
-          });
-        }
+        // Add default user data
+        Object.assign(movieData[movieId], {
+          'progress': 0.0,
+          'userRating': 0.0,
+          'isWishlisted': false,
+        });
+        
       } catch (e) {
-        console.error('Error processing movie document:', e);
         // Skip this document if processing fails
+        console.error('Error processing movie:', e);
         continue;
       }
     }
     
-    // Wait for all async operations to complete
-    if (futures.length > 0) {
-      await Promise.all(futures);
-    }
-    
     // Phase 3: Finalize and return processed movies
-    for (const row of rows) {
-      const movieId = row.$id;
+    for (const doc of documents) {
+      if (!doc || !doc.$id) continue;
+      
+      const movieId = doc.$id;
       if (movieData[movieId]) {
         processedMovies.push(movieData[movieId]);
       }
@@ -1532,8 +1390,8 @@ export class MovieService {
     return processedMovies;
   }
   
-  // Helper to process video URLs asynchronously
-  private async _processVideoUrl(movieId: string, rawVideoUrl: string): Promise<Record<string, any>> {
+  // Helper to process video URLs
+  private async _processVideoUrl(movieId: string, rawVideoUrl: string): Promise<any> {
     try {
       // Detect video source
       const sourceInfo = this.detectVideoSource(rawVideoUrl);
@@ -1547,38 +1405,15 @@ export class MovieService {
         'videoUrls': videoUrls,
         'videoSourceType': videoSourceType,
         'streamingHeaders': this.getStreamingHeaders(processedVideoUrl),
-        'isReady': !!processedVideoUrl,
+        'isReady': processedVideoUrl ? true : false,
       };
     } catch (e) {
-      console.error('Error processing video URL:', e);
       return {
         'videoUrl': rawVideoUrl,
         'videoUrls': {'original': rawVideoUrl, 'sourceType': MovieService.SOURCE_BUNNY},
         'videoSourceType': MovieService.SOURCE_BUNNY,
         'streamingHeaders': {},
         'isReady': false,
-      };
-    }
-  }
-  
-  // Helper to get user-specific data for a movie
-  private async _getUserDataForMovie(movieId: string): Promise<Record<string, any>> {
-    try {
-      const progress = await this.getMovieProgress(movieId);
-      const rating = await this.getMovieRating(movieId);
-      const isWishlisted = await this.isMovieWishlisted(movieId);
-      
-      return {
-        'progress': progress,
-        'userRating': rating,
-        'isWishlisted': isWishlisted,
-      };
-    } catch (e) {
-      console.error('Error getting user data for movie:', e);
-      return {
-        'progress': 0.0,
-        'userRating': 0.0,
-        'isWishlisted': false,
       };
     }
   }
@@ -1593,56 +1428,56 @@ export class MovieService {
     return null;
   }
 
-  // Public Utility Methods
-  async clearCache(): Promise<void> {
-    this._progressCache.clear();
-    this._movieListCache.clear();
-    this._cacheExpiry.clear();
-    this._allFeaturedMoviesCache = null;
-    this._currentFeaturedSelection = null;
-    this._featuredMoviesCacheTimestamp = null;
+  private _getFallbackFeaturedMovies(): any[] {
+    return [
+      {
+        'id': 'fallback_featured_1',
+        'title': 'Action Hero Returns',
+        'description': 'The ultimate action-packed thriller.',
+        'imageAsset': 'assets/images/banner1.jpg',
+        'posterUrl': 'assets/images/poster1.jpg',
+        'rating': 8.5,
+        'year': '2023',
+        'duration': '2h 15m',
+        'genres': ['Action', 'Thriller'],
+        'isPremium': false,
+        'videoUrl': '',
+        'videoUrls': {'sourceType': MovieService.SOURCE_BUNNY},
+        'videoSourceType': MovieService.SOURCE_BUNNY,
+        'streamingHeaders': {},
+        'isReady': false,
+        'progress': 0.0,
+        'userRating': 0.0,
+        'isWishlisted': false,
+      },
+    ];
   }
-  
+
+  // Force refresh of featured movies selection
   refreshFeaturedMovies(): void {
     this._currentFeaturedSelection = null;
   }
-  
-  async prepareMovieForPlayback(movie: any): Promise<VideoPlayerData> {
-    const videoData = this._createVideoPlayerData(movie);
-    
-    // For premium content, check if user is premium or needs to watch an ad
-    if (videoData.isPremium && !this._isPremiumUser) {
-      videoData.requiresAdToPlay = true;
+
+  // Utility Methods
+  async clearCache(): Promise<void> {
+    try {
+      this._progressCache.clear();
+      this._movieListCache.clear();
+      this._cacheExpiry.clear();
+      this._allFeaturedMoviesCache = null;
+      this._currentFeaturedSelection = null;
+      this._featuredMoviesCacheTimestamp = null;
+      
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('adViewTracking');
+      }
+    } catch (e) {
+      console.error('Error clearing cache:', e);
     }
-    
-    return videoData;
-  }
-  
-  private _createVideoPlayerData(movie: any): VideoPlayerData {
-    return {
-      id: movie.id || '',
-      title: movie.title || '',
-      videoUrl: movie.videoUrl || '',
-      videoUrls: movie.videoUrls || {},
-      videoSourceType: movie.videoSourceType || MovieService.SOURCE_BUNNY,
-      streamingHeaders: movie.streamingHeaders || {},
-      thumbnailUrl: movie.posterUrl || '',
-      description: movie.description || '',
-      rating: typeof movie.rating === 'number' ? movie.rating : 0.0,
-      year: movie.year?.toString() || '',
-      duration: movie.duration || '',
-      genres: Array.isArray(movie.genres) ? movie.genres : [],
-      isPremium: !!movie.isPremium,
-      isReady: !!movie.isReady,
-      progress: typeof movie.progress === 'number' ? movie.progress : 0.0,
-      userRating: typeof movie.userRating === 'number' ? movie.userRating : 0.0,
-      isWishlisted: !!movie.isWishlisted,
-      requiresAdToPlay: false,
-    };
   }
   
   get isUserAuthenticated(): boolean {
-    return !!this._currentUserId;
+    return this._currentUserId !== null;
   }
   
   get currentUserId(): string | null {
@@ -1650,21 +1485,173 @@ export class MovieService {
   }
 }
 
-// Hook for using MovieService in React components
+// Implementation of VideoPlayerData
+export class VideoPlayerDataImpl implements VideoPlayerData {
+  id: string;
+  title: string;
+  videoUrl: string;
+  videoUrls: Record<string, string>;
+  videoSourceType: string;
+  streamingHeaders: Record<string, string>;
+  thumbnailUrl: string;
+  description: string;
+  rating: number;
+  year: string;
+  duration: string;
+  genres: string[];
+  isPremium: boolean;
+  isReady: boolean;
+  progress: number;
+  userRating: number;
+  isWishlisted: boolean;
+  requiresAdToPlay: boolean;
+
+  constructor({
+    id,
+    title,
+    videoUrl,
+    videoUrls,
+    videoSourceType,
+    streamingHeaders,
+    thumbnailUrl,
+    description,
+    rating,
+    year,
+    duration,
+    genres,
+    isPremium,
+    isReady = false,
+    progress = 0.0,
+    userRating = 0.0,
+    isWishlisted = false,
+    requiresAdToPlay = false,
+  }: {
+    id: string;
+    title: string;
+    videoUrl: string;
+    videoUrls: Record<string, string>;
+    videoSourceType: string;
+    streamingHeaders: Record<string, string>;
+    thumbnailUrl: string;
+    description: string;
+    rating: number;
+    year: string;
+    duration: string;
+    genres: string[];
+    isPremium: boolean;
+    isReady?: boolean;
+    progress?: number;
+    userRating?: number;
+    isWishlisted?: boolean;
+    requiresAdToPlay?: boolean;
+  }) {
+    this.id = id;
+    this.title = title;
+    this.videoUrl = videoUrl;
+    this.videoUrls = videoUrls;
+    this.videoSourceType = videoSourceType;
+    this.streamingHeaders = streamingHeaders;
+    this.thumbnailUrl = thumbnailUrl;
+    this.description = description;
+    this.rating = rating;
+    this.year = year;
+    this.duration = duration;
+    this.genres = genres;
+    this.isPremium = isPremium;
+    this.isReady = isReady;
+    this.progress = progress;
+    this.userRating = userRating;
+    this.isWishlisted = isWishlisted;
+    this.requiresAdToPlay = requiresAdToPlay;
+  }
+
+  static fromMovie(movie: any): VideoPlayerData {
+    return new VideoPlayerDataImpl({
+      id: movie.id,
+      title: movie.title,
+      videoUrl: movie.videoUrl || '',
+      videoUrls: movie.videoUrls || {},
+      videoSourceType: movie.videoSourceType || MovieService.SOURCE_BUNNY,
+      streamingHeaders: movie.streamingHeaders || {},
+      thumbnailUrl: movie.posterUrl,
+      description: movie.description,
+      rating: movie.rating ?? 0.0,
+      year: movie.year.toString(),
+      duration: movie.duration,
+      genres: movie.genres || [],
+      isPremium: movie.isPremium || false,
+      isReady: movie.isReady || false,
+      progress: movie.progress ?? 0.0,
+      userRating: movie.userRating ?? 0.0,
+      isWishlisted: movie.isWishlisted || false,
+    });
+  }
+
+  getBestVideoUrl(): string {
+    if (this.videoSourceType === MovieService.SOURCE_YOUTUBE) {
+      return this.videoUrls['youtube'] || this.videoUrl;
+    }
+    
+    if (this.videoSourceType === MovieService.SOURCE_DAILYMOTION) {
+      return this.videoUrls['dailymotion'] || this.videoUrl;
+    }
+    
+    return this.videoUrls['720p'] || this.videoUrls['480p'] || this.videoUrls['360p'] || this.videoUrls['hls'] || this.videoUrl;
+  }
+
+  getAvailableQualities(): string[] {
+    if (this.videoSourceType === MovieService.SOURCE_YOUTUBE || 
+        this.videoSourceType === MovieService.SOURCE_DAILYMOTION) {
+      return [];
+    }
+    
+    return Object.keys(this.videoUrls).filter(key => 
+        key !== 'original' && 
+        key !== 'sourceType' && 
+        key !== 'youtube' && 
+        key !== 'dailymotion' && 
+        key !== 'embed'
+    );
+  }
+  
+  get isYouTubeVideo(): boolean { 
+    return this.videoSourceType === MovieService.SOURCE_YOUTUBE; 
+  }
+  
+  get isDailymotionVideo(): boolean { 
+    return this.videoSourceType === MovieService.SOURCE_DAILYMOTION; 
+  }
+  
+  get isBunnyVideo(): boolean { 
+    return this.videoSourceType === MovieService.SOURCE_BUNNY; 
+  }
+  
+  get youtubeVideoId(): string | null { 
+    return this.isYouTubeVideo ? (this.videoUrls['youtube'] || null) : null; 
+  }
+  
+  get dailymotionVideoId(): string | null { 
+    return this.isDailymotionVideo ? (this.videoUrls['dailymotion'] || null) : null; 
+  }
+  
+  get dailymotionEmbedUrl(): string | null { 
+    return this.isDailymotionVideo ? (this.videoUrls['embed'] || null) : null; 
+  }
+}
+
+// Hook for using the movie service
 export function useMovieService() {
-  const [movieService] = useState(() => MovieService.getInstance());
+  const [service] = useState(() => MovieService.getInstance());
   const [isInitialized, setIsInitialized] = useState(false);
   
   useEffect(() => {
-    if (!isInitialized) {
-      const initService = async () => {
-        await movieService.initialize();
-        setIsInitialized(true);
-      };
-      
-      initService();
-    }
-  }, [movieService, isInitialized]);
+    const initService = async () => {
+      await service.initialize();
+      setIsInitialized(true);
+    };
+    
+    initService();
+  }, [service]);
   
-  return { movieService, isInitialized };
+  return { service, isInitialized };
 }
