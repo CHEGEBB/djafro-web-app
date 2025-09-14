@@ -1,0 +1,394 @@
+// styles/MovieRow.scss
+@import 'variables';
+
+.movie-row {
+  position: relative;
+  padding: 0 2rem;
+  
+  @media (max-width: 768px) {
+    padding: 0 1rem;
+  }
+  
+  // Header with title and explore button
+  &__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  
+  // Row title
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 600;
+    color: $text-primary;
+    
+    @media (max-width: 768px) {
+      font-size: 1.25rem;
+    }
+  }
+  
+  // Explore button
+  &__explore {
+    font-size: 0.875rem;
+    color: $text-secondary;
+    transition: color 0.2s ease;
+    
+    &:hover {
+      color: $primary-color;
+    }
+  }
+  
+  // Container for carousel and arrows
+  &__container {
+    position: relative;
+  }
+  
+  // Carousel container
+  &__carousel {
+    display: flex;
+    gap: 1rem;
+    overflow-x: auto;
+    scroll-behavior: smooth;
+    padding: 1rem 0;
+    margin: -1rem 0;
+    
+    // Hide scrollbar
+    &::-webkit-scrollbar {
+      display: none;
+    }
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  // Navigation arrows
+  &__arrow {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 20;
+    width: 40px;
+    height: 40px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: rgba(0, 0, 0, 0.7);
+    color: white;
+    border-radius: 50%;
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background-color: rgba(0, 0, 0, 0.9);
+      transform: translateY(-50%) scale(1.1);
+    }
+    
+    @media (max-width: 768px) {
+      width: 32px;
+      height: 32px;
+    }
+  }
+  
+  &__arrow--left {
+    left: -20px;
+    
+    @media (max-width: 768px) {
+      left: -10px;
+    }
+  }
+  
+  &__arrow--right {
+    right: -20px;
+    
+    @media (max-width: 768px) {
+      right: -10px;
+    }
+  }
+  
+  // Movie card
+  &__card {
+    flex-shrink: 0;
+    width: 180px;
+    transition: all 0.3s ease;
+    position: relative;
+    border-radius: 8px;
+    overflow: hidden;
+    z-index: 1;
+    
+    &:hover {
+      transform: scale(1.05) translateY(-10px);
+      z-index: 10;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+    
+    // Expanded state
+    &--expanded {
+      transform: scale(1.05) translateY(-10px);
+      z-index: 10;
+      box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+    }
+    
+    // Loading state
+    &--loading {
+      height: 270px;
+      background: linear-gradient(110deg, #1a1a1a 30%, #2a2a2a 50%, #1a1a1a 70%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+  }
+  
+  // Poster container
+  &__poster-container {
+    position: relative;
+    width: 100%;
+    height: 270px;
+    border-radius: 8px;
+    overflow: hidden;
+  }
+  
+  // Poster image
+  &__poster {
+    width: 100%;
+    height: 100%;
+    object-fit: cover;
+    transition: transform 0.5s ease;
+    
+    .movie-row__card:hover & {
+      transform: scale(1.1);
+    }
+  }
+  
+  // Overlay for poster
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to top,
+      rgba(0, 0, 0, 0.8) 0%,
+      rgba(0, 0, 0, 0.4) 20%,
+      rgba(0, 0, 0, 0) 50%
+    );
+    opacity: 0;
+    transition: opacity 0.3s ease;
+    
+    .movie-row__card:hover &,
+    .movie-row__card--expanded & {
+      opacity: 1;
+    }
+  }
+  
+  // Action buttons container
+  &__actions {
+    position: absolute;
+    left: 0;
+    right: 0;
+    bottom: 10px;
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    opacity: 0;
+    transform: translateY(10px);
+    transition: all 0.3s ease;
+    z-index: 5;
+    
+    .movie-row__card:hover &,
+    .movie-row__card--expanded & {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+  
+  // Action button
+  &__action {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all 0.2s ease;
+    
+    svg {
+      width: 16px;
+      height: 16px;
+    }
+    
+    &:hover {
+      transform: scale(1.1);
+    }
+    
+    &:active {
+      transform: scale(0.95);
+    }
+  }
+  
+  &__action--play {
+    background-color: $primary-color;
+    color: white;
+  }
+  
+  &__action--wishlist {
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    color: white;
+  }
+  
+  &__action--info {
+    background-color: rgba(255, 255, 255, 0.2);
+    backdrop-filter: blur(4px);
+    color: white;
+  }
+  
+  // Wishlist badge
+  &__badge {
+    position: absolute;
+    top: 8px;
+    right: 8px;
+    background-color: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    border-radius: 4px;
+    padding: 4px 8px;
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    z-index: 5;
+    font-size: 0.75rem;
+    color: $text-primary;
+  }
+  
+  &__badge-icon {
+    width: 16px;
+    height: 16px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background-color: $primary-color;
+    border-radius: 50%;
+    color: white;
+  }
+  
+  // Progress bar
+  &__progress-container {
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    right: 0;
+    height: 4px;
+    background-color: rgba(255, 255, 255, 0.2);
+    z-index: 5;
+  }
+  
+  &__progress-bar {
+    height: 100%;
+    background-color: $primary-color;
+  }
+  
+  // Movie info
+  &__info {
+    padding: 0.75rem 0.5rem;
+  }
+  
+  &__movie-title {
+    font-size: 0.875rem;
+    font-weight: 600;
+    color: $text-primary;
+    margin-bottom: 0.25rem;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 0.75rem;
+    color: $text-secondary;
+  }
+  
+  // Expanded content (shows on hover)
+  &__expanded-content {
+    margin-top: 0.5rem;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  &__genres {
+    display: flex;
+    gap: 0.5rem;
+    margin-bottom: 0.5rem;
+  }
+  
+  &__genre {
+    font-size: 0.7rem;
+    color: $text-secondary;
+    background-color: rgba(255, 255, 255, 0.1);
+    padding: 2px 6px;
+    border-radius: 4px;
+  }
+  
+  &__description {
+    font-size: 0.75rem;
+    color: $text-secondary;
+    line-height: 1.4;
+    max-height: 5.6em;
+    overflow: hidden;
+    display: -webkit-box;
+    -webkit-line-clamp: 4;
+    -webkit-box-orient: vertical;
+  }
+  
+  // Empty state
+  &__empty-message {
+    background-color: rgba(255, 255, 255, 0.05);
+    padding: 2rem;
+    border-radius: 8px;
+    text-align: center;
+    color: $text-secondary;
+  }
+  
+  // Scroll indicators
+  &__indicators {
+    display: flex;
+    justify-content: center;
+    gap: 8px;
+    margin-top: 1rem;
+  }
+  
+  &__indicator {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background-color: rgba(255, 255, 255, 0.2);
+    cursor: pointer;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.4);
+    }
+    
+    &--active {
+      background-color: $primary-color;
+    }
+  }
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(5px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}

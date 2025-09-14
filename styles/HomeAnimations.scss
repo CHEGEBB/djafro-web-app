@@ -1,86 +1,262 @@
 /* styles/HomeAnimations.scss */
 @keyframes fadeIn {
-    from {
-      opacity: 0;
-    }
-    to {
-      opacity: 1;
-    }
+  from {
+    opacity: 0;
   }
-  
-  @keyframes slideInRight {
-    from {
-      transform: translateX(50px);
-      opacity: 0;
-    }
-    to {
-      transform: translateX(0);
-      opacity: 1;
-    }
+  to {
+    opacity: 1;
   }
-  
-  @keyframes scaleIn {
-    from {
-      transform: scale(0.9);
-      opacity: 0;
-    }
-    to {
-      transform: scale(1);
-      opacity: 1;
-    }
+}
+
+@keyframes slideInRight {
+  from {
+    transform: translateX(40px);
+    opacity: 0;
   }
-  
-  @keyframes shimmer {
-    0% {
-      background-position: -200% 0;
-    }
-    100% {
-      background-position: 200% 0;
-    }
+  to {
+    transform: translateX(0);
+    opacity: 1;
   }
-  
-  .banner-animation {
-    animation: scaleIn 1.2s ease-out;
+}
+
+@keyframes slideInUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0;
   }
-  
-  .card-animation {
-    animation: fadeIn 0.5s ease-out;
+  to {
+    transform: translateY(0);
+    opacity: 1;
   }
-  
-  .row-animation {
-    animation: slideInRight 0.8s ease-out;
+}
+
+@keyframes scaleIn {
+  from {
+    transform: scale(0.95);
+    opacity: 0;
   }
-  
-  .skeleton-loading {
-    background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
-    background-size: 200% 100%;
-    animation: shimmer 1.5s infinite;
+  to {
+    transform: scale(1);
+    opacity: 1;
   }
-  
-  .hover-scale {
-    transition: transform 0.3s ease;
+}
+
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
   }
-  
-  .hover-scale:hover {
-    transform: scale(1.05);
-    z-index: 10;
+  100% {
+    background-position: 200% 0;
   }
-  
-  .card-item {
-    transition: all 0.3s ease;
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
   }
-  
-  .card-item:hover {
-    transform: translateY(-5px);
-    box-shadow: 0 10px 20px rgba(0, 0, 0, 0.4);
+  50% {
+    opacity: 0.7;
   }
-  
-  .carousel-container {
-    position: relative;
-    overflow: hidden;
+}
+
+@keyframes float {
+  0% {
+    transform: translateY(0px);
   }
-  
-  .carousel-wrapper {
-    display: flex;
-    transition: transform 0.5s ease-in-out;
+  50% {
+    transform: translateY(-8px);
   }
+  100% {
+    transform: translateY(0px);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+.banner-animation {
+  animation: scaleIn 1.2s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card-animation {
+  animation: fadeIn 0.5s ease-out;
+}
+
+.row-animation {
+  animation: slideInUp 0.8s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.skeleton-loading {
+  background: linear-gradient(90deg, #1a1a1a 25%, #2a2a2a 50%, #1a1a1a 75%);
+  background-size: 200% 100%;
+  animation: shimmer 1.5s infinite;
+}
+
+.hover-scale {
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform;
+}
+
+.hover-scale:hover {
+  transform: scale(1.08);
+  z-index: 10;
+}
+
+.card-item {
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+  will-change: transform, box-shadow;
+}
+
+.card-item:hover {
+  transform: translateY(-8px);
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.5);
+}
+
+.carousel-container {
+  position: relative;
+  overflow: hidden;
+  margin: 0 -8px;
+  padding: 0 8px;
+}
+
+.carousel-wrapper {
+  display: flex;
+  transition: transform 0.5s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.floating-animation {
+  animation: float 6s ease-in-out infinite;
+}
+
+.pulse-animation {
+  animation: pulse 2s ease-in-out infinite;
+}
+
+.loading-spinner {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  border: 3px solid rgba(255, 255, 255, 0.1);
+  border-top-color: rgba(255, 255, 255, 0.7);
+  animation: spin 1s linear infinite;
+}
+
+/* Card hover animations */
+.card-overlay {
+  opacity: 0;
+  transform: translateY(10px);
+  transition: all 0.3s cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.card-item:hover .card-overlay {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+.card-title {
+  transition: color 0.3s ease;
+}
+
+.card-item:hover .card-title {
+  color: #e50914;
+}
+
+/* Button animations */
+.btn-pulse {
+  position: relative;
+}
+
+.btn-pulse::after {
+  content: '';
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  border-radius: inherit;
+  box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.7);
+  animation: pulse-shadow 2s infinite cubic-bezier(0.66, 0, 0, 1);
+}
+
+@keyframes pulse-shadow {
+  0% {
+    box-shadow: 0 0 0 0 rgba(229, 9, 20, 0.7);
+  }
+  70% {
+    box-shadow: 0 0 0 10px rgba(229, 9, 20, 0);
+  }
+  100% {
+    box-shadow: 0 0 0 0 rgba(229, 9, 20, 0);
+  }
+}
+
+/* Sidebar animations */
+.sidebar-item {
+  transition: all 0.2s ease;
+}
+
+.sidebar-item:hover {
+  background-color: rgba(255, 255, 255, 0.1);
+  transform: translateX(5px);
+}
+
+.active-sidebar-item {
+  position: relative;
+  overflow: hidden;
+}
+
+.active-sidebar-item::before {
+  content: '';
+  position: absolute;
+  left: 0;
+  top: 0;
+  height: 100%;
+  width: 4px;
+  background-color: #e50914;
+  transform-origin: bottom;
+  animation: slideUp 0.3s ease-out forwards;
+}
+
+@keyframes slideUp {
+  from {
+    transform: scaleY(0);
+  }
+  to {
+    transform: scaleY(1);
+  }
+}
+
+/* Scrollbar styling */
+.scrollbar-thin::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-track {
+  background: rgba(0, 0, 0, 0.1);
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb {
+  background: rgba(255, 255, 255, 0.2);
+  border-radius: 10px;
+}
+
+.scrollbar-thin::-webkit-scrollbar-thumb:hover {
+  background: rgba(255, 255, 255, 0.3);
+}
+
+.scrollbar-hide::-webkit-scrollbar {
+  display: none;
+}
+
+.scrollbar-hide {
+  -ms-overflow-style: none;
+  scrollbar-width: none;
+}

@@ -1,0 +1,249 @@
+// styles/Sidebar.scss
+@import 'variables';
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100vh;
+  width: 280px;
+  background-color: $surface-color;
+  color: $text-primary;
+  display: flex;
+  flex-direction: column;
+  z-index: 50;
+  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.3);
+  transition: transform 0.3s ease, width 0.3s ease;
+  
+  @media (max-width: 1024px) {
+    width: 250px;
+  }
+  
+  // Mobile closed state
+  &--closed {
+    transform: translateX(-100%);
+  }
+  
+  // Mobile open state
+  &--open {
+    transform: translateX(0);
+  }
+  
+  // Mobile overlay
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    background-color: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    z-index: 49;
+    animation: fadeIn 0.3s ease;
+  }
+  
+  // Mobile toggle button
+  &__toggle {
+    position: fixed;
+    top: 16px;
+    left: 16px;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    z-index: 51;
+    color: $text-primary;
+    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
+    
+    svg {
+      width: 24px;
+      height: 24px;
+    }
+  }
+  
+  // Header section
+  &__header {
+    padding: 1.5rem;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  // Logo
+  &__logo {
+    display: flex;
+    align-items: center;
+    font-weight: 700;
+  }
+  
+  &__logo-text {
+    font-size: 1.5rem;
+    
+    &--white {
+      color: white;
+    }
+  }
+  
+  // Search section
+  &__search {
+    padding: 1rem 1.5rem;
+  }
+  
+  &__search-container {
+    position: relative;
+    background-color: rgba(255, 255, 255, 0.05);
+    border-radius: 9999px;
+    overflow: hidden;
+    transition: all 0.3s ease;
+    
+    &--active {
+      background-color: rgba(255, 255, 255, 0.1);
+      box-shadow: 0 0 0 2px rgba($primary-color, 0.5);
+    }
+  }
+  
+  &__search-input {
+    width: 100%;
+    background: transparent;
+    color: $text-primary;
+    padding: 0.75rem 1rem 0.75rem 2.5rem;
+    font-size: 0.875rem;
+    border: none;
+    outline: none;
+    
+    &::placeholder {
+      color: $text-secondary;
+    }
+  }
+  
+  &__search-icon {
+    position: absolute;
+    left: 0.75rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: $text-secondary;
+  }
+  
+  // Navigation container
+  &__nav-container {
+    flex: 1;
+    overflow-y: auto;
+    
+    // Hide scrollbar
+    &::-webkit-scrollbar {
+      width: 0;
+    }
+    scrollbar-width: none;
+    -ms-overflow-style: none;
+  }
+  
+  // Section
+  &__section {
+    padding: 1rem 0;
+    
+    &:not(:last-child) {
+      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
+    }
+  }
+  
+  // Section header
+  &__section-header {
+    padding: 0 1.5rem;
+    font-size: 0.75rem;
+    font-weight: 600;
+    text-transform: uppercase;
+    color: $text-secondary;
+    margin-bottom: 0.5rem;
+  }
+  
+  // Navigation
+  &__nav {
+    display: flex;
+    flex-direction: column;
+  }
+  
+  // Nav item
+  &__nav-item {
+    display: flex;
+    align-items: center;
+    padding: 0.75rem 1.5rem;
+    color: $text-secondary;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: $text-primary;
+    }
+    
+    // Active state
+    &--active {
+      color: $primary-color;
+      background-color: rgba($primary-color, 0.1);
+      border-left: 3px solid $primary-color;
+      padding-left: calc(1.5rem - 3px);
+      
+      .sidebar__nav-icon {
+        color: $primary-color;
+      }
+    }
+  }
+  
+  // Icon in nav item
+  &__nav-icon {
+    margin-right: 0.75rem;
+    width: 1.25rem;
+    height: 1.25rem;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: $text-secondary;
+    transition: color 0.2s ease;
+    
+    svg {
+      width: 1rem;
+      height: 1rem;
+    }
+    
+    .sidebar__nav-item:hover & {
+      color: $text-primary;
+    }
+  }
+  
+  // Footer
+  &__footer {
+    padding: 1rem 0;
+    border-top: 1px solid rgba(255, 255, 255, 0.1);
+  }
+  
+  // Logout button
+  &__logout {
+    display: flex;
+    align-items: center;
+    width: 100%;
+    padding: 0.75rem 1.5rem;
+    color: $text-secondary;
+    font-size: 0.875rem;
+    transition: all 0.2s ease;
+    text-align: left;
+    
+    &:hover {
+      background-color: rgba(255, 255, 255, 0.05);
+      color: $text-primary;
+    }
+  }
+  
+  &__logout-icon {
+    margin-right: 0.75rem;
+    width: 1.25rem;
+    height: 1.25rem;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
