@@ -50,12 +50,12 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({
   };
   
   return (
-    <div className="relative my-4 group">
+    <div className="relative group">
       {/* Left scroll button */}
       {showLeftArrow && (
         <button 
           onClick={() => scroll('left')}
-          className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-gray-900/80 hover:bg-gray-800 rounded-full p-1.5 shadow-lg transition-opacity opacity-0 group-hover:opacity-100"
+          className="absolute -left-4 top-1/2 -translate-y-1/2 z-10 bg-gray-900/80 hover:bg-gray-800 rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           aria-label="Scroll genres left"
         >
           <ChevronLeft className="w-5 h-5" />
@@ -90,7 +90,7 @@ const GenreSelector: React.FC<GenreSelectorProps> = ({
       {showRightArrow && (
         <button 
           onClick={() => scroll('right')}
-          className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 bg-gray-900/80 hover:bg-gray-800 rounded-full p-1.5 shadow-lg transition-opacity opacity-0 group-hover:opacity-100"
+          className="absolute -right-4 top-1/2 -translate-y-1/2 z-10 bg-gray-900/80 hover:bg-gray-800 rounded-full p-1.5 shadow-lg opacity-0 group-hover:opacity-100 transition-opacity duration-300"
           aria-label="Scroll genres right"
         >
           <ChevronRight className="w-5 h-5" />

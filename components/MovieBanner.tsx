@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // components/MovieBanner.tsx
 'use client';
 
@@ -16,7 +17,7 @@ interface MovieBannerProps {
 
 const AnimatedMovieBanner: React.FC<MovieBannerProps> = ({ 
   movies = [], 
-  autoPlayInterval = 6000,
+  autoPlayInterval = 3000,
   showControls = true,
   isLoading = false
 }) => {

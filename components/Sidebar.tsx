@@ -1,4 +1,3 @@
-// components/Sidebar.tsx
 'use client';
 
 import React, { useState, useEffect } from 'react';
@@ -7,8 +6,8 @@ import { usePathname } from 'next/navigation';
 import { useTheme } from '@/context/ThemeContext';
 import { 
   Home, Film, Compass, Library, User, 
-  LogOut, Menu, X, Star, Search, Calendar, Clock,
-  Heart, Settings, TrendingUp, Award, Video
+  LogOut, Menu, X, Search, Settings,
+  TrendingUp, Heart, Play
 } from 'lucide-react';
 import '@/styles/Sidebar.scss';
 
@@ -29,7 +28,6 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
     setMounted(true);
   }, []);
 
-  // If not mounted yet, don't render to avoid hydration issues
   if (!mounted) {
     return null;
   }
@@ -38,25 +36,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
     return pathname === path;
   };
 
-  const primaryNavItems = [
+  const navItems = [
     { path: '/', name: 'Home', icon: <Home /> },
     { path: '/movies', name: 'Movies', icon: <Film /> },
     { path: '/discover', name: 'Discover', icon: <Compass /> },
     { path: '/trending', name: 'Trending', icon: <TrendingUp /> },
-  ];
-  
-  const libraryNavItems = [
-    { path: '/library', name: 'My Library', icon: <Library /> },
+    { path: '/library', name: 'My List', icon: <Library /> },
     { path: '/watchlist', name: 'Watchlist', icon: <Heart /> },
-    { path: '/history', name: 'History', icon: <Clock /> },
-    { path: '/favorites', name: 'Favorites', icon: <Star /> },
-  ];
-  
-  const categoryNavItems = [
-    { path: '/category/action', name: 'Action', icon: <Video /> },
-    { path: '/category/comedy', name: 'Comedy', icon: <Video /> },
-    { path: '/category/drama', name: 'Drama', icon: <Video /> },
-    { path: '/category/awards', name: 'Award Winners', icon: <Award /> },
   ];
 
   return (
@@ -74,9 +60,8 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
         <button 
           onClick={onToggle}
           className="sidebar__toggle"
-          style={{ backgroundColor: colors.surface }}
         >
-          {isOpen ? <X /> : <Menu />}
+          {isOpen ? <X size={20} /> : <Menu size={20} />}
         </button>
       )}
       
@@ -84,8 +69,9 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
       <div className={`sidebar ${isOpen ? 'sidebar--open' : 'sidebar--closed'}`}>
         <div className="sidebar__header">
           <Link href="/" className="sidebar__logo" onClick={isMobile ? onToggle : undefined}>
-            <span className="sidebar__logo-text" style={{ color: colors.primary }}>
-              DJ Afro<span className="sidebar__logo-text--white">Movies</span>
+            <Play className="sidebar__logo-icon" size={18} />
+            <span className="sidebar__logo-text">
+              DJ Afro<span className="sidebar__logo-accent">Movies</span>
             </span>
           </Link>
         </div>
@@ -94,82 +80,45 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
           <div className={`sidebar__search-container ${searchActive ? 'sidebar__search-container--active' : ''}`}>
             <input
               type="text"
-              placeholder="Search everything"
+              placeholder="Search..."
               className="sidebar__search-input"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
               onFocus={() => setSearchActive(true)}
               onBlur={() => setSearchActive(false)}
             />
-            <Search className="sidebar__search-icon" />
+            <Search className="sidebar__search-icon" size={16} />
           </div>
         </div>
         
         <div className="sidebar__nav-container">
-          <div className="sidebar__section">
-            <div className="sidebar__section-header">Main Menu</div>
-            <nav className="sidebar__nav">
-              {primaryNavItems.map((item) => (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  onClick={isMobile ? onToggle : undefined}
-                  className={`sidebar__nav-item ${isActive(item.path) ? 'sidebar__nav-item--active' : ''}`}
-                >
-                  <span className="sidebar__nav-icon">{item.icon}</span>
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          
-          <div className="sidebar__section">
-            <div className="sidebar__section-header">My Content</div>
-            <nav className="sidebar__nav">
-              {libraryNavItems.map((item) => (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  onClick={isMobile ? onToggle : undefined}
-                  className={`sidebar__nav-item ${isActive(item.path) ? 'sidebar__nav-item--active' : ''}`}
-                >
-                  <span className="sidebar__nav-icon">{item.icon}</span>
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
-          
-          <div className="sidebar__section">
-            <div className="sidebar__section-header">Categories</div>
-            <nav className="sidebar__nav">
-              {categoryNavItems.map((item) => (
-                <Link
-                  key={item.path}
-                  href={item.path}
-                  onClick={isMobile ? onToggle : undefined}
-                  className={`sidebar__nav-item ${isActive(item.path) ? 'sidebar__nav-item--active' : ''}`}
-                >
-                  <span className="sidebar__nav-icon">{item.icon}</span>
-                  {item.name}
-                </Link>
-              ))}
-            </nav>
-          </div>
+          <nav className="sidebar__nav">
+            {navItems.map((item) => (
+              <Link
+                key={item.path}
+                href={item.path}
+                onClick={isMobile ? onToggle : undefined}
+                className={`sidebar__nav-item ${isActive(item.path) ? 'sidebar__nav-item--active' : ''}`}
+              >
+                <span className="sidebar__nav-icon">{item.icon}</span>
+                <span className="sidebar__nav-text">{item.name}</span>
+              </Link>
+            ))}
+          </nav>
         </div>
         
         <div className="sidebar__footer">
-          <Link href="/profile" className="sidebar__nav-item">
-            <span className="sidebar__nav-icon"><User /></span>
-            Profile
+          <Link href="/profile" className="sidebar__footer-item">
+            <User size={18} />
+            <span>Profile</span>
           </Link>
-          <Link href="/settings" className="sidebar__nav-item">
-            <span className="sidebar__nav-icon"><Settings /></span>
-            Settings
+          <Link href="/settings" className="sidebar__footer-item">
+            <Settings size={18} />
+            <span>Settings</span>
           </Link>
           <button className="sidebar__logout">
-            <LogOut className="sidebar__logout-icon" />
-            Log Out
+            <LogOut size={18} />
+            <span>Logout</span>
           </button>
         </div>
       </div>

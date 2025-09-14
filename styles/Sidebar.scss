@@ -1,249 +1,273 @@
 // styles/Sidebar.scss
-@import 'variables';
 
 .sidebar {
-  position: fixed;
-  top: 0;
-  left: 0;
-  height: 100vh;
-  width: 280px;
-  background-color: $surface-color;
-  color: $text-primary;
-  display: flex;
-  flex-direction: column;
-  z-index: 50;
-  box-shadow: 5px 0 15px rgba(0, 0, 0, 0.3);
-  transition: transform 0.3s ease, width 0.3s ease;
-  
-  @media (max-width: 1024px) {
-    width: 250px;
-  }
-  
-  // Mobile closed state
-  &--closed {
-    transform: translateX(-100%);
-  }
-  
-  // Mobile open state
-  &--open {
-    transform: translateX(0);
-  }
-  
-  // Mobile overlay
-  &__overlay {
     position: fixed;
-    inset: 0;
-    background-color: rgba(0, 0, 0, 0.6);
-    backdrop-filter: blur(4px);
-    z-index: 49;
-    animation: fadeIn 0.3s ease;
-  }
-  
-  // Mobile toggle button
-  &__toggle {
-    position: fixed;
-    top: 16px;
-    left: 16px;
-    width: 40px;
-    height: 40px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    z-index: 51;
-    color: $text-primary;
-    box-shadow: 0 4px 10px rgba(0, 0, 0, 0.3);
-    
-    svg {
-      width: 24px;
-      height: 24px;
-    }
-  }
-  
-  // Header section
-  &__header {
-    padding: 1.5rem;
-    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  // Logo
-  &__logo {
-    display: flex;
-    align-items: center;
-    font-weight: 700;
-  }
-  
-  &__logo-text {
-    font-size: 1.5rem;
-    
-    &--white {
-      color: white;
-    }
-  }
-  
-  // Search section
-  &__search {
-    padding: 1rem 1.5rem;
-  }
-  
-  &__search-container {
-    position: relative;
-    background-color: rgba(255, 255, 255, 0.05);
-    border-radius: 9999px;
-    overflow: hidden;
-    transition: all 0.3s ease;
-    
-    &--active {
-      background-color: rgba(255, 255, 255, 0.1);
-      box-shadow: 0 0 0 2px rgba($primary-color, 0.5);
-    }
-  }
-  
-  &__search-input {
-    width: 100%;
-    background: transparent;
-    color: $text-primary;
-    padding: 0.75rem 1rem 0.75rem 2.5rem;
-    font-size: 0.875rem;
-    border: none;
-    outline: none;
-    
-    &::placeholder {
-      color: $text-secondary;
-    }
-  }
-  
-  &__search-icon {
-    position: absolute;
-    left: 0.75rem;
-    top: 50%;
-    transform: translateY(-50%);
-    width: 1rem;
-    height: 1rem;
-    color: $text-secondary;
-  }
-  
-  // Navigation container
-  &__nav-container {
-    flex: 1;
-    overflow-y: auto;
-    
-    // Hide scrollbar
-    &::-webkit-scrollbar {
-      width: 0;
-    }
-    scrollbar-width: none;
-    -ms-overflow-style: none;
-  }
-  
-  // Section
-  &__section {
-    padding: 1rem 0;
-    
-    &:not(:last-child) {
-      border-bottom: 1px solid rgba(255, 255, 255, 0.05);
-    }
-  }
-  
-  // Section header
-  &__section-header {
-    padding: 0 1.5rem;
-    font-size: 0.75rem;
-    font-weight: 600;
-    text-transform: uppercase;
-    color: $text-secondary;
-    margin-bottom: 0.5rem;
-  }
-  
-  // Navigation
-  &__nav {
+    top: 0;
+    left: 0;
+    height: 100vh;
+    width: 200px; // Much narrower than your original 280px
+    background-color: #000000;
+    color: #ffffff;
     display: flex;
     flex-direction: column;
-  }
-  
-  // Nav item
-  &__nav-item {
-    display: flex;
-    align-items: center;
-    padding: 0.75rem 1.5rem;
-    color: $text-secondary;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
+    z-index: 50;
+    border-right: 1px solid #333333;
+    transition: transform 0.3s ease-in-out;
     
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.05);
-      color: $text-primary;
+    @media (max-width: 1024px) {
+      width: 220px;
+      box-shadow: 4px 0 20px rgba(0, 0, 0, 0.5);
     }
     
-    // Active state
-    &--active {
-      color: $primary-color;
-      background-color: rgba($primary-color, 0.1);
-      border-left: 3px solid $primary-color;
-      padding-left: calc(1.5rem - 3px);
+    // Closed state
+    &--closed {
+      transform: translateX(-100%);
+    }
+    
+    // Open state  
+    &--open {
+      transform: translateX(0);
+    }
+    
+    // Mobile overlay
+    &__overlay {
+      position: fixed;
+      inset: 0;
+      background-color: rgba(0, 0, 0, 0.8);
+      backdrop-filter: blur(8px);
+      z-index: 49;
+      animation: fadeIn 0.3s ease;
+    }
+    
+    // Mobile toggle button
+    &__toggle {
+      position: fixed;
+      top: 16px;
+      left: 16px;
+      width: 36px;
+      height: 36px;
+      border-radius: 6px;
+      background-color: #000000;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      z-index: 51;
+      color: #ffffff;
+      cursor: pointer;
+      transition: all 0.2s ease;
       
-      .sidebar__nav-icon {
-        color: $primary-color;
+      &:hover {
+        background-color: #e50914;
+      }
+    }
+    
+    // Header section
+    &__header {
+      padding: 16px 12px;
+      border-bottom: 1px solid #333333;
+    }
+    
+    // Logo
+    &__logo {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      text-decoration: none;
+      cursor: pointer;
+      transition: transform 0.2s ease;
+      
+      &:hover {
+        transform: scale(1.02);
+      }
+    }
+    
+    &__logo-icon {
+      color: #e50914;
+    }
+    
+    &__logo-text {
+      font-size: 16px;
+      font-weight: 700;
+      color: #ffffff;
+      letter-spacing: -0.3px;
+    }
+    
+    &__logo-accent {
+      color: #e50914;
+    }
+    
+    // Search section
+    &__search {
+      padding: 12px;
+    }
+    
+    &__search-container {
+      position: relative;
+      background-color: #111111;
+      border: 1px solid #333333;
+      border-radius: 6px;
+      transition: all 0.2s ease;
+      
+      &--active {
+        border-color: #e50914;
+        
+        .sidebar__search-icon {
+          color: #e50914;
+        }
+      }
+    }
+    
+    &__search-input {
+      width: 100%;
+      background: transparent;
+      color: #ffffff;
+      padding: 8px 10px 8px 32px;
+      font-size: 13px;
+      border: none;
+      outline: none;
+      
+      &::placeholder {
+        color: #666666;
+      }
+    }
+    
+    &__search-icon {
+      position: absolute;
+      left: 10px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: #666666;
+      transition: color 0.2s ease;
+    }
+    
+    // Navigation container
+    &__nav-container {
+      flex: 1;
+      overflow-y: auto;
+      padding: 8px 0;
+      
+      // Custom scrollbar
+      &::-webkit-scrollbar {
+        width: 4px;
+      }
+      
+      &::-webkit-scrollbar-track {
+        background: transparent;
+      }
+      
+      &::-webkit-scrollbar-thumb {
+        background: #333333;
+        border-radius: 2px;
+        
+        &:hover {
+          background: #e50914;
+        }
+      }
+    }
+    
+    // Navigation
+    &__nav {
+      display: flex;
+      flex-direction: column;
+    }
+    
+    // Nav item
+    &__nav-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 10px 12px;
+      color: #b3b3b3;
+      font-size: 14px;
+      font-weight: 500;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      
+      &:hover {
+        color: #ffffff;
+        background-color: #111111;
+      }
+      
+      // Active state
+      &--active {
+        color: #ffffff;
+        background-color: #e50914;
+        
+        .sidebar__nav-icon {
+          color: #ffffff;
+        }
+      }
+    }
+    
+    // Icon in nav item
+    &__nav-icon {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      min-width: 18px;
+      color: inherit;
+      transition: color 0.2s ease;
+    }
+    
+    &__nav-text {
+      color: inherit;
+    }
+    
+    // Footer
+    &__footer {
+      padding: 12px 0;
+      border-top: 1px solid #333333;
+      margin-top: auto;
+    }
+    
+    // Footer item
+    &__footer-item {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      padding: 8px 12px;
+      color: #b3b3b3;
+      font-size: 13px;
+      text-decoration: none;
+      transition: all 0.2s ease;
+      cursor: pointer;
+      
+      &:hover {
+        color: #ffffff;
+        background-color: #111111;
+      }
+    }
+    
+    // Logout button
+    &__logout {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+      width: 100%;
+      padding: 8px 12px;
+      color: #b3b3b3;
+      font-size: 13px;
+      background: none;
+      border: none;
+      text-align: left;
+      cursor: pointer;
+      transition: all 0.2s ease;
+      
+      &:hover {
+        color: #ffffff;
+        background-color: #e50914;
       }
     }
   }
   
-  // Icon in nav item
-  &__nav-icon {
-    margin-right: 0.75rem;
-    width: 1.25rem;
-    height: 1.25rem;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: $text-secondary;
-    transition: color 0.2s ease;
-    
-    svg {
-      width: 1rem;
-      height: 1rem;
+  // Animation keyframes
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
     }
-    
-    .sidebar__nav-item:hover & {
-      color: $text-primary;
+    to {
+      opacity: 1;
     }
   }
-  
-  // Footer
-  &__footer {
-    padding: 1rem 0;
-    border-top: 1px solid rgba(255, 255, 255, 0.1);
-  }
-  
-  // Logout button
-  &__logout {
-    display: flex;
-    align-items: center;
-    width: 100%;
-    padding: 0.75rem 1.5rem;
-    color: $text-secondary;
-    font-size: 0.875rem;
-    transition: all 0.2s ease;
-    text-align: left;
-    
-    &:hover {
-      background-color: rgba(255, 255, 255, 0.05);
-      color: $text-primary;
-    }
-  }
-  
-  &__logout-icon {
-    margin-right: 0.75rem;
-    width: 1.25rem;
-    height: 1.25rem;
-  }
-}
-
-@keyframes fadeIn {
-  from {
-    opacity: 0;
-  }
-  to {
-    opacity: 1;
-  }
-}
