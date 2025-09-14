@@ -28,7 +28,6 @@ const MovieRow: React.FC<MovieRowProps> = ({
   const rowRef = useRef<HTMLDivElement>(null);
   const [showLeftArrow, setShowLeftArrow] = useState(false);
   const [showRightArrow, setShowRightArrow] = useState(true);
-  const [autoScrollEnabled, setAutoScrollEnabled] = useState(false);
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   
@@ -69,35 +68,6 @@ const MovieRow: React.FC<MovieRowProps> = ({
     setShowRightArrow(scrollLeft < scrollWidth - clientWidth - 20);
   };
   
-  // Auto-scroll functionality (initially disabled)
-  useEffect(() => {
-    if (!autoScrollEnabled || !rowRef.current) return;
-    
-    const interval = setInterval(() => {
-      if (!rowRef.current) return;
-      
-      const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
-      
-      // If we're near the end, go back to start
-      if (scrollLeft + clientWidth >= scrollWidth - 100) {
-        rowRef.current.scrollTo({
-          left: 0,
-          behavior: 'smooth'
-        });
-      } else {
-        // Otherwise continue scrolling
-        rowRef.current.scrollTo({
-          left: scrollLeft + 200,
-          behavior: 'smooth'
-        });
-      }
-      
-      setScrollPosition(rowRef.current.scrollLeft);
-    }, 5000);
-    
-    return () => clearInterval(interval);
-  }, [autoScrollEnabled]);
-  
   // Toggle wishlist handler
   const handleToggleWishlist = async (movieId: string, event: React.MouseEvent) => {
     event.stopPropagation();
@@ -110,12 +80,12 @@ const MovieRow: React.FC<MovieRowProps> = ({
   // Render loading skeleton
   if (isLoading) {
     return (
-      <div className="movie-row movie-row--loading">
-        <h2 className="movie-row__title">{title}</h2>
-        <div className="movie-row__container">
-          <div className="movie-row__carousel">
+      <div className="movie-row movie-row--loading mb-8">
+        <h2 className="movie-row__title text-xl font-semibold mb-4">{title}</h2>
+        <div className="movie-row__container relative">
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
             {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="movie-row__card movie-row__card--loading"></div>
+              <div key={i} className="aspect-[2/3] rounded-lg bg-gray-800 animate-pulse"></div>
             ))}
           </div>
         </div>
@@ -126,121 +96,135 @@ const MovieRow: React.FC<MovieRowProps> = ({
   // If no movies
   if (!movies || movies.length === 0) {
     return (
-      <div className="movie-row movie-row--empty">
-        <h2 className="movie-row__title">{title}</h2>
-        <div className="movie-row__empty-message">
+      <div className="movie-row movie-row--empty mb-8">
+        <h2 className="movie-row__title text-xl font-semibold mb-4">{title}</h2>
+        <div className="py-10 text-center text-gray-500 bg-gray-800/30 rounded-lg">
           No movies available in this category.
         </div>
       </div>
     );
   }
   
+  // Ensure each movie has a unique ID
+  const moviesWithUniqueIds = movies.map((movie, index) => ({
+    ...movie,
+    uniqueId: movie.id || `movie-${title}-${index}`
+  }));
+  
   return (
-    <div className="movie-row">
-      <div className="movie-row__header">
-        <h2 className="movie-row__title">{title}</h2>
+    <div className="movie-row mb-8">
+      <div className="movie-row__header flex items-center justify-between mb-4">
+        <h2 className="movie-row__title text-xl font-semibold">{title}</h2>
         
         {/* Optional: Category Explore Link */}
         {movies.length >= 5 && (
-          <button className="movie-row__explore">
+          <button className="text-sm text-gray-400 hover:text-white transition-colors">
             Explore All
           </button>
         )}
       </div>
       
-      <div className="movie-row__container">
+      <div className="movie-row__container relative">
         {/* Left Arrow */}
         {showLeftArrow && (
           <button 
             onClick={() => scroll('left')}
-            className="movie-row__arrow movie-row__arrow--left"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 hover:bg-black/90 rounded-full p-2 shadow-lg"
             aria-label="Scroll left"
           >
-            <ChevronLeft />
+            <ChevronLeft size={20} />
           </button>
         )}
         
         {/* Movie List */}
         <div 
           ref={rowRef}
-          className="movie-row__carousel"
+          className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide"
           onScroll={handleScroll}
         >
-          {movies.map((movie, index) => (
+          {moviesWithUniqueIds.map((movie, index) => (
             <div 
-              key={movie.id} 
-              className={`movie-row__card ${hoveredCardIndex === index ? 'movie-row__card--expanded' : ''}`}
+              key={movie.uniqueId} 
+              className={`
+                movie-row__card flex-shrink-0 
+                w-36 sm:w-40 md:w-44 lg:w-48 xl:w-56 
+                transition-all duration-300
+                ${hoveredCardIndex === index ? 'scale-105 z-10' : 'scale-100 z-0'}
+              `}
               onMouseEnter={() => setHoveredCardIndex(index)}
               onMouseLeave={() => setHoveredCardIndex(null)}
             >
               {/* Movie Poster */}
-              <div className="movie-row__poster-container">
+              <div className="relative aspect-[2/3] rounded-lg overflow-hidden">
                 <Image 
                   src={movie.posterUrl || '/images/placeholder.jpg'} 
                   alt={movie.title}
-                  width={180}
-                  height={270}
-                  className="movie-row__poster"
+                  fill
+                  sizes="(max-width: 640px) 144px, (max-width: 768px) 160px, (max-width: 1024px) 176px, (max-width: 1280px) 192px, 224px"
+                  className="object-cover transition-transform duration-300 hover:scale-110"
                   loading="lazy"
                 />
                 
                 {/* Overlay gradient */}
-                <div className="movie-row__overlay"></div>
+                <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-transparent to-transparent"></div>
                 
                 {/* Wishlist badge */}
                 {(movie.isWishlisted || showWishlistBadge) && (
-                  <div className="movie-row__badge">
-                    <div className="movie-row__badge-icon">
-                      <Check size={12} />
-                    </div>
-                    <span className="movie-row__badge-text">My List</span>
+                  <div className="absolute top-2 right-2 bg-red-600 text-white text-xs px-2 py-1 rounded-full flex items-center">
+                    <Check size={10} className="mr-1" />
+                    <span>My List</span>
                   </div>
                 )}
                 
                 {/* Progress bar for continue watching */}
                 {showProgress && movie.progress > 0 && (
-                  <div className="movie-row__progress-container">
+                  <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800">
                     <div 
-                      className="movie-row__progress-bar" 
-                      style={{ width: `${movie.progress * 100}%`, backgroundColor: colors?.primary }}
+                      className="h-full"
+                      style={{ 
+                        width: `${movie.progress * 100}%`, 
+                        backgroundColor: colors?.primary || '#E50914' 
+                      }}
                     ></div>
                   </div>
                 )}
                 
                 {/* Action buttons on hover */}
-                <div className="movie-row__actions">
-                  <button className="movie-row__action movie-row__action--play">
-                    <Play />
+                <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
+                  <button className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors">
+                    <Play size={16} />
                   </button>
                   <button 
-                    className="movie-row__action movie-row__action--wishlist"
+                    className="p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors"
                     onClick={(e) => handleToggleWishlist(movie.id, e)}
                   >
-                    {movie.isWishlisted ? <Check /> : <Plus />}
+                    {movie.isWishlisted ? <Check size={16} /> : <Plus size={16} />}
                   </button>
-                  <button className="movie-row__action movie-row__action--info">
-                    <Info />
+                  <button className="p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors">
+                    <Info size={16} />
                   </button>
                 </div>
               </div>
               
               {/* Movie info */}
-              <div className="movie-row__info">
-                <h3 className="movie-row__movie-title">{movie.title}</h3>
-                <div className="movie-row__meta">
-                  <span className="movie-row__year">{movie.year}</span>
-                  <span className="movie-row__duration">{movie.duration || '1h 45m'}</span>
+              <div className="mt-2">
+                <h3 className="text-sm font-medium truncate">{movie.title}</h3>
+                <div className="flex items-center text-xs text-gray-400 mt-1">
+                  <span>{movie.year}</span>
+                  <span className="mx-1.5">•</span>
+                  <span>{movie.duration || '1h 45m'}</span>
                 </div>
                 
-                {/* Expanded card elements */}
+                {/* Expanded card elements - only show on hover */}
                 {hoveredCardIndex === index && (
-                  <div className="movie-row__expanded-content">
-                    <div className="movie-row__genres">
+                  <div className="mt-2 hidden md:block">
+                    <div className="flex flex-wrap gap-1 mb-1">
                       {movie.genres && movie.genres.slice(0, 2).map((genre: string, idx: number) => (
-                        <span key={idx} className="movie-row__genre">{genre}</span>
+                        <span key={idx} className="text-xs px-1.5 py-0.5 bg-gray-800 rounded text-gray-300">
+                          {genre}
+                        </span>
                       ))}
                     </div>
-                    <p className="movie-row__description">{movie.description}</p>
                   </div>
                 )}
               </div>
@@ -252,26 +236,30 @@ const MovieRow: React.FC<MovieRowProps> = ({
         {showRightArrow && (
           <button 
             onClick={() => scroll('right')}
-            className="movie-row__arrow movie-row__arrow--right"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 hover:bg-black/90 rounded-full p-2 shadow-lg"
             aria-label="Scroll right"
           >
-            <ChevronRight />
+            <ChevronRight size={20} />
           </button>
         )}
       </div>
       
-      {/* Scroll indicator dots */}
+      {/* Scroll indicator dots for larger collections */}
       {movies.length > 5 && (
-        <div className="movie-row__indicators">
+        <div className="flex justify-center space-x-1 mt-3">
           {Array(Math.ceil(movies.length / 5)).fill(0).map((_, index) => {
             const isActive = 
-              scrollPosition >= (index * rowRef.current?.clientWidth || 0) * 0.8 && 
-              scrollPosition < ((index + 1) * rowRef.current?.clientWidth || 0) * 0.8;
+              scrollPosition >= (index * (rowRef.current?.clientWidth || 0) * 0.8) && 
+              scrollPosition < ((index + 1) * (rowRef.current?.clientWidth || 0) * 0.8);
             
             return (
-              <div 
-                key={index} 
-                className={`movie-row__indicator ${isActive ? 'movie-row__indicator--active' : ''}`}
+              <button
+                key={`indicator-${index}`}
+                className={`h-1.5 rounded-full transition-all ${
+                  isActive 
+                    ? 'w-6 bg-red-600' 
+                    : 'w-1.5 bg-gray-600 hover:bg-gray-500'
+                }`}
                 onClick={() => {
                   if (rowRef.current) {
                     rowRef.current.scrollTo({
@@ -280,7 +268,8 @@ const MovieRow: React.FC<MovieRowProps> = ({
                     });
                   }
                 }}
-              ></div>
+                aria-label={`Go to page ${index + 1}`}
+              ></button>
             );
           })}
         </div>

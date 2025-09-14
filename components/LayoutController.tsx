@@ -15,12 +15,9 @@ const LayoutController: React.FC<LayoutControllerProps> = ({ children }) => {
   useEffect(() => {
     // Detect if we're on mobile
     const checkIfMobile = () => {
-      setIsMobile(window.innerWidth < 1024);
-      if (window.innerWidth < 1024) {
-        setSidebarOpen(false);
-      } else {
-        setSidebarOpen(true);
-      }
+      const mobile = window.innerWidth < 1024;
+      setIsMobile(mobile);
+      setSidebarOpen(!mobile);
     };
     
     // Check on mount
@@ -47,9 +44,9 @@ const LayoutController: React.FC<LayoutControllerProps> = ({ children }) => {
       
       <main className={`
         flex-1 overflow-auto transition-all duration-300
-        ${isMobile ? 'w-full' : sidebarOpen ? 'ml-0' : 'ml-0 w-full'}
+        ${sidebarOpen ? (isMobile ? 'ml-0' : 'ml-64') : 'ml-0'}
       `}>
-        <div className="container mx-auto p-4">
+        <div className="container mx-auto px-2 sm:px-4 py-2">
           {children}
         </div>
       </main>

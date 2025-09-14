@@ -1,4 +1,3 @@
-
 // app/page.tsx
 'use client';
 
@@ -9,6 +8,7 @@ import { useMovieService } from '@/services/movie_service';
 import AnimatedMovieBanner from '@/components/MovieBanner';
 import { ChevronDown } from 'lucide-react';
 import '@/styles/Dashboard.scss';
+import GenreSelector from '@/components/GenreSelector';
 
 export default function Dashboard() {
   const { service, isInitialized } = useMovieService();
@@ -23,6 +23,7 @@ export default function Dashboard() {
   const [isLoading, setIsLoading] = useState(true);
   const [hasMore, setHasMore] = useState(true);
   const [page, setPage] = useState(1);
+  const [selectedGenre, setSelectedGenre] = useState('All');
   const observerRef = useRef<IntersectionObserver>();
   const loadMoreRef = useRef<HTMLDivElement>(null);
   
@@ -72,6 +73,11 @@ export default function Dashboard() {
     loadData();
   }, [isInitialized, service]);
   
+  const genres = [
+    'All', 'Action', 'Comedy', 'Drama', 'Horror', 
+    'Thriller', 'Sci-Fi', 'Romance', 'Documentary'
+  ];
+
   // Setup infinite scrolling
   const loadMoreMovies = useCallback(async () => {
     if (isLoading || !hasMore) return;
@@ -167,7 +173,10 @@ export default function Dashboard() {
       console.error('Error toggling wishlist:', error);
     }
   };
-  
+  const handleGenreChange = (genre: string) => {
+    setSelectedGenre(genre);
+    setHasMore(true);
+  };
   return (
     <LayoutController>
       <div className="dashboard-container">
@@ -180,14 +189,14 @@ export default function Dashboard() {
             isLoading={isLoading && featuredMovies.length === 0}
           />
         </div>
-         {/* Genre Selector */}
- <div className="px-4 md:px-6">
- <GenreSelector 
-   genres={genres} 
-   selectedGenre={selectedGenre} 
-   onSelectGenre={handleGenreChange} 
- />
-</div>
+        {/* Genre Selector */}
+        <div className="px-4 md:px-6">
+          <GenreSelector
+            genres={genres} 
+            selectedGenre={selectedGenre} 
+            onSelectGenre={handleGenreChange} 
+          />
+        </div>
         
         {/* Movie Categories */}
         <div className="movie-categories">
