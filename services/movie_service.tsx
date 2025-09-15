@@ -77,6 +77,260 @@ class MovieService {
     }
   }
 
+  // Video URL processing functions
+  private extractBunnyVideoInfo(url: string): Record<string, string> {
+    try {
+      // Handle iframe URLs
+      if (url.includes('iframe.mediadelivery.net/play/')) {
+        const uri = new URL(url);
+        const segments = uri.pathname.split('/');
+        
+        if (segments.length >= 4 && segments[1] === 'play') {
+          const libraryId = segments[2];
+          const videoId = segments[3];
+          
+          return {
+            libraryId,
+            videoId,
+            pullZone: `vz-${libraryId}-17b.b-cdn.net`,
+          };
+        }
+      }
+      
+      // Handle direct CDN URLs
+      else if (url.includes('b-cdn.net')) {
+        const uri = new URL(url);
+        const host = uri.hostname;
+        const pathSegments = uri.pathname.split('/').filter(Boolean);
+        
+        if (pathSegments.length > 0) {
+          const videoId = pathSegments[0].replace(/\.(mp4|m3u8)$/, '');
+          
+          // Extract library ID from hostname
+          const libraryMatch = host.match(/vz-([a-f0-9-]+)-/);
+          const libraryId = libraryMatch?.[1] || '';
+          
+          return {
+            libraryId,
+            videoId,
+            pullZone: host,
+          };
+        }
+      }
+      
+      // Handle embed URLs
+      else if (url.includes('iframe.mediadelivery.net/embed/')) {
+        const uri = new URL(url);
+        const segments = uri.pathname.split('/');
+        
+        if (segments.length >= 4 && segments[1] === 'embed') {
+          const libraryId = segments[2];
+          const videoId = segments[3];
+          
+          return {
+            libraryId,
+            videoId,
+            pullZone: `vz-${libraryId}-17b.b-cdn.net`,
+          };
+        }
+      }
+    } catch (e) {
+      console.error('Error extracting video info:', e);
+    }
+    
+    return {};
+  }
+
+  private detectVideoSource(url: string): { type: string; url: string; videoId?: string } {
+    if (!url) {
+      return { type: '', url: '' };
+    }
+    
+    const normalizedUrl = url.trim();
+    
+    // Check for Bunny Stream URLs
+    if (normalizedUrl.endsWith('.m3u8') || normalizedUrl.includes('b-cdn.net') || normalizedUrl.includes('mediadelivery.net')) {
+      return { type: SOURCE_BUNNY, url: normalizedUrl };
+    }
+    
+    // Check for YouTube URLs
+    if (normalizedUrl.includes('youtube.com') || normalizedUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(normalizedUrl)) {
+      let videoId = '';
+      
+      if (normalizedUrl.includes('youtube.com/watch?v=')) {
+        const urlObj = new URL(normalizedUrl);
+        videoId = urlObj.searchParams.get('v') || '';
+      } else if (normalizedUrl.includes('youtu.be/')) {
+        const urlObj = new URL(normalizedUrl);
+        videoId = urlObj.pathname.split('/').pop() || '';
+      } else if (/^[a-zA-Z0-9_-]{11}$/.test(normalizedUrl)) {
+        videoId = normalizedUrl;
+      }
+      
+      if (videoId) {
+        return { type: SOURCE_YOUTUBE, url: normalizedUrl, videoId };
+      }
+    }
+    
+    // Check for Dailymotion URLs
+    if (normalizedUrl.includes('dailymotion.com') || normalizedUrl.includes('dai.ly/')) {
+      let videoId = '';
+      
+      if (normalizedUrl.includes('dailymotion.com/embed/video/')) {
+        const segments = new URL(normalizedUrl).pathname.split('/');
+        videoId = segments[segments.length - 1];
+      } else if (normalizedUrl.includes('dai.ly/')) {
+        const segments = new URL(normalizedUrl).pathname.split('/');
+        videoId = segments[segments.length - 1];
+      }
+      
+      if (videoId) {
+        return { type: SOURCE_DAILYMOTION, url: normalizedUrl, videoId };
+      }
+    }
+    
+    // Default to Bunny Stream
+    return { type: SOURCE_BUNNY, url: normalizedUrl };
+  }
+
+  private async formatVideoUrls(baseUrl: string): Promise<Record<string, string>> {
+    if (!baseUrl) {
+      return {};
+    }
+
+    try {
+      const sourceInfo = this.detectVideoSource(baseUrl);
+      const sourceType = sourceInfo.type;
+      
+      // Handle YouTube URLs
+      if (sourceType === SOURCE_YOUTUBE) {
+        const videoId = sourceInfo.videoId || '';
+        
+        return {
+          youtube: `https://www.youtube.com/watch?v=${videoId}`,
+          original: baseUrl,
+          sourceType: SOURCE_YOUTUBE,
+        };
+      }
+      
+      // Handle Dailymotion URLs
+      else if (sourceType === SOURCE_DAILYMOTION) {
+        const videoId = sourceInfo.videoId || '';
+        
+        // Format embed URL properly like your mobile version
+        const embedUrl = `https://www.dailymotion.com/embed/video/${videoId}`;
+        
+        return {
+          dailymotion: embedUrl,
+          embed: embedUrl,
+          original: baseUrl,
+          sourceType: SOURCE_DAILYMOTION,
+        };
+      }
+      
+      // Handle Bunny.net URLs
+      else {
+        // If it's already a direct CDN URL, use it
+        if (baseUrl.includes('b-cdn.net')) {
+          const videoUrls: Record<string, string> = {};
+          
+          // If it's an HLS playlist URL, use it directly
+          if (baseUrl.includes('playlist.m3u8')) {
+            videoUrls['hls'] = baseUrl;
+            videoUrls['original'] = baseUrl;
+            videoUrls['sourceType'] = SOURCE_BUNNY;
+            
+            // Try to construct MP4 URLs from the same base
+            const baseUrlWithoutFile = baseUrl.replace('/playlist.m3u8', '');
+            videoUrls['1080p'] = `${baseUrlWithoutFile}/play_1080p.mp4`;
+            videoUrls['720p'] = `${baseUrlWithoutFile}/play_720p.mp4`;
+            videoUrls['480p'] = `${baseUrlWithoutFile}/play_480p.mp4`;
+            videoUrls['360p'] = `${baseUrlWithoutFile}/play_360p.mp4`;
+          } 
+          // If it's an MP4 URL, use it directly
+          else if (baseUrl.includes('.mp4')) {
+            videoUrls['original'] = baseUrl;
+            videoUrls['sourceType'] = SOURCE_BUNNY;
+            
+            // Try to construct other quality URLs
+            if (baseUrl.includes('play_720p.mp4')) {
+              videoUrls['720p'] = baseUrl;
+              const baseUrlWithoutQuality = baseUrl.replace('play_720p.mp4', '');
+              videoUrls['1080p'] = `${baseUrlWithoutQuality}play_1080p.mp4`;
+              videoUrls['480p'] = `${baseUrlWithoutQuality}play_480p.mp4`;
+              videoUrls['360p'] = `${baseUrlWithoutQuality}play_360p.mp4`;
+              videoUrls['hls'] = `${baseUrlWithoutQuality}playlist.m3u8`;
+            } else {
+              videoUrls['720p'] = baseUrl;
+            }
+          } else {
+            videoUrls['original'] = baseUrl;
+            videoUrls['sourceType'] = SOURCE_BUNNY;
+          }
+          
+          return videoUrls;
+        }
+        
+        // For iframe or embed URLs, try extraction
+        const videoInfo = this.extractBunnyVideoInfo(baseUrl);
+        if (Object.keys(videoInfo).length === 0) {
+          return { original: baseUrl, sourceType: SOURCE_BUNNY };
+        }
+        
+        const { libraryId, videoId, pullZone } = videoInfo;
+        
+        // Generate video URLs like your mobile version
+        const videoUrls: Record<string, string> = {
+          sourceType: SOURCE_BUNNY,
+          original: baseUrl,
+        };
+        
+        // For web, prefer MP4 over HLS due to better browser support
+        if (typeof window !== 'undefined') {
+          videoUrls['720p'] = `https://${pullZone}/${videoId}/play_720p.mp4`;
+          videoUrls['480p'] = `https://${pullZone}/${videoId}/play_480p.mp4`;
+          videoUrls['360p'] = `https://${pullZone}/${videoId}/play_360p.mp4`;
+          videoUrls['1080p'] = `https://${pullZone}/${videoId}/play_1080p.mp4`;
+          videoUrls['hls'] = `https://${pullZone}/${videoId}/playlist.m3u8`;
+        }
+        
+        return videoUrls;
+      }
+      
+    } catch (e) {
+      console.error('Error formatting video URLs:', e);
+      return { original: baseUrl, sourceType: SOURCE_BUNNY };
+    }
+  }
+
+  private getStreamingHeaders(videoUrl: string): Record<string, string> {
+    const sourceInfo = this.detectVideoSource(videoUrl);
+    const sourceType = sourceInfo.type;
+    
+    // For YouTube and Dailymotion, no special headers needed
+    if (sourceType === SOURCE_YOUTUBE || sourceType === SOURCE_DAILYMOTION) {
+      return {};
+    }
+    
+    // For Bunny Stream
+    if (videoUrl.includes('b-cdn.net') || videoUrl.includes('bunnycdn.com')) {
+      return {
+        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+        'Accept': '*/*',
+        'Accept-Language': 'en-US,en;q=0.9',
+        'Accept-Encoding': 'identity',
+        'Connection': 'keep-alive',
+        'Referer': 'https://iframe.mediadelivery.net/',
+        'Origin': 'https://iframe.mediadelivery.net',
+      };
+    }
+    
+    // For other sources, return minimal headers
+    return {
+      'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
+    };
+  }
+
   // Main method to fetch all movies
   async getAllMovies(options: {
     offset?: number;
@@ -122,7 +376,7 @@ class MovieService {
         queries
       );
 
-      const movies = this.processMovieDocuments(response.documents);
+      const movies = await this.processMovieDocumentsAsync(response.documents);
       
       // If user is logged in, fetch and merge wishlist/progress information
       if (this.userId) {
@@ -162,7 +416,7 @@ class MovieService {
         ]
       );
 
-      let result = this.processMovieDocuments(response.documents);
+      let result = await this.processMovieDocumentsAsync(response.documents);
       
       // If not enough trending movies are marked, fallback to rating-based sorting
       if (result.length < 5) {
@@ -175,7 +429,7 @@ class MovieService {
           ]
         );
         
-        result = this.processMovieDocuments(ratingResponse.documents);
+        result = await this.processMovieDocumentsAsync(ratingResponse.documents);
       }
       
       // If user is logged in, fetch and merge wishlist/progress information
@@ -220,7 +474,7 @@ class MovieService {
         ]
       );
 
-      let result = this.processMovieDocuments(response.documents);
+      let result = await this.processMovieDocumentsAsync(response.documents);
       
       // If user is logged in, fetch and merge wishlist/progress information
       if (this.userId) {
@@ -264,7 +518,7 @@ class MovieService {
         ]
       );
 
-      let result = this.processMovieDocuments(response.documents);
+      let result = await this.processMovieDocumentsAsync(response.documents);
       
       // If user is logged in, fetch and merge wishlist/progress information
       if (this.userId) {
@@ -298,7 +552,7 @@ class MovieService {
         ]
       );
 
-      let result = this.processMovieDocuments(response.documents);
+      let result = await this.processMovieDocumentsAsync(response.documents);
       
       // If not enough featured movies, fall back to high rated movies
       if (result.length < 3) {
@@ -311,7 +565,7 @@ class MovieService {
           ]
         );
         
-        result = this.processMovieDocuments(ratingResponse.documents);
+        result = await this.processMovieDocumentsAsync(ratingResponse.documents);
       }
       
       // If user is logged in, fetch and merge wishlist/progress information
@@ -339,7 +593,7 @@ class MovieService {
         movieId
       );
 
-      let processedMovies = this.processMovieDocuments([response]);
+      let processedMovies = await this.processMovieDocumentsAsync([response]);
       
       // If user is logged in, fetch and merge wishlist/progress information
       if (this.userId && processedMovies.length > 0) {
@@ -373,7 +627,7 @@ class MovieService {
         ]
       );
 
-      let result = this.processMovieDocuments(response.documents);
+      let result = await this.processMovieDocumentsAsync(response.documents);
       
       // If user is logged in, fetch and merge wishlist/progress information
       if (this.userId) {
@@ -433,7 +687,7 @@ class MovieService {
             ]
           );
           
-          const processedBatch = this.processMovieDocuments(moviesResponse.documents);
+          const processedBatch = await this.processMovieDocumentsAsync(moviesResponse.documents);
           
           // Mark all these movies as wishlisted
           processedBatch.forEach(movie => {
@@ -510,7 +764,7 @@ class MovieService {
             ]
           );
           
-          const processedBatch = this.processMovieDocuments(moviesResponse.documents);
+          const processedBatch = await this.processMovieDocumentsAsync(moviesResponse.documents);
           
           // Add progress information to each movie
           processedBatch.forEach(movie => {
@@ -665,9 +919,9 @@ class MovieService {
     }
   }
 
-  // Process movie documents from Appwrite
-  private processMovieDocuments(documents: any[]): Movie[] {
-    return documents.map(doc => {
+  // Process movie documents from Appwrite with async video URL formatting
+  private async processMovieDocumentsAsync(documents: any[]): Promise<Movie[]> {
+    const processMoviePromises = documents.map(async (doc) => {
       // Parse genres
       let genres: string[] = [];
       if (doc.genre) {
@@ -681,9 +935,10 @@ class MovieService {
         genres = ['Action'];
       }
 
-      // Process video URL
+      // Process video URL asynchronously
       const rawVideoUrl = doc.video_url || '';
-      const videoSourceInfo = this.detectVideoSource(rawVideoUrl);
+      const formattedVideoUrls = await this.formatVideoUrls(rawVideoUrl);
+      const streamingHeaders = this.getStreamingHeaders(rawVideoUrl);
       
       return {
         id: doc.$id,
@@ -696,11 +951,8 @@ class MovieService {
         genres,
         isPremium: doc.premium_only || false,
         videoUrl: rawVideoUrl,
-        videoUrls: { 
-          original: rawVideoUrl,
-          sourceType: videoSourceInfo.type
-        },
-        streamingHeaders: {},
+        videoUrls: formattedVideoUrls,
+        streamingHeaders,
         isReady: rawVideoUrl ? true : false,
         viewCount: doc.view_count || 0,
         downloadCount: doc.download_count || 0,
@@ -711,6 +963,8 @@ class MovieService {
         isWishlisted: false
       };
     });
+
+    return await Promise.all(processMoviePromises);
   }
 
   // Enhance movies with user data (wishlist, progress)
@@ -760,54 +1014,6 @@ class MovieService {
       console.error('Error enhancing movies with user data:', error);
       return movies;
     }
-  }
-
-  // Detect video source type
-  private detectVideoSource(url: string): { type: string; url: string } {
-    if (!url) {
-      return { type: '', url: '' };
-    }
-    
-    // Normalize URL by removing extra spaces
-    const normalizedUrl = url.trim();
-    
-    // Check for Bunny Stream URLs (m3u8 playlists)
-    if (normalizedUrl.endsWith('.m3u8') || normalizedUrl.includes('b-cdn.net')) {
-      return { type: SOURCE_BUNNY, url: normalizedUrl };
-    }
-    
-    // Check for YouTube URLs
-    if (normalizedUrl.includes('youtube.com') || 
-        normalizedUrl.includes('youtu.be') || 
-        /^[a-zA-Z0-9_-]{11}$/.test(normalizedUrl)) {
-      
-      // Extract video ID from YouTube URL
-      let videoId = '';
-      
-      if (normalizedUrl.includes('youtube.com/watch?v=')) {
-        const urlObj = new URL(normalizedUrl);
-        videoId = urlObj.searchParams.get('v') || '';
-      } else if (normalizedUrl.includes('youtu.be/')) {
-        const urlObj = new URL(normalizedUrl);
-        videoId = urlObj.pathname.split('/').pop() || '';
-      } else if (/^[a-zA-Z0-9_-]{11}$/.test(normalizedUrl)) {
-        // Already a YouTube video ID
-        videoId = normalizedUrl;
-      }
-      
-      if (videoId) {
-        return { type: SOURCE_YOUTUBE, url: normalizedUrl };
-      }
-    }
-    
-    // Check for Dailymotion URLs
-    if (normalizedUrl.includes('dailymotion.com/embed/video/') || 
-        normalizedUrl.includes('dai.ly/')) {
-      return { type: SOURCE_DAILYMOTION, url: normalizedUrl };
-    }
-    
-    // Unknown URL type - try to handle as Bunny Stream
-    return { type: SOURCE_BUNNY, url: normalizedUrl };
   }
 
   // Parse any value to double

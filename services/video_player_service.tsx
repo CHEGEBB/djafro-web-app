@@ -40,6 +40,232 @@ export interface VideoPlayerProps {
   showControls?: boolean;
 }
 
+// Video URL processing functions
+const extractBunnyVideoInfo = (url: string): Record<string, string> => {
+  try {
+    // Handle iframe URLs
+    if (url.includes('iframe.mediadelivery.net/play/')) {
+      const uri = new URL(url);
+      const segments = uri.pathname.split('/');
+      
+      if (segments.length >= 4 && segments[1] === 'play') {
+        const libraryId = segments[2];
+        const videoId = segments[3];
+        
+        return {
+          libraryId,
+          videoId,
+          pullZone: `vz-${libraryId}-17b.b-cdn.net`,
+        };
+      }
+    }
+    
+    // Handle direct CDN URLs
+    else if (url.includes('b-cdn.net')) {
+      const uri = new URL(url);
+      const host = uri.hostname;
+      const pathSegments = uri.pathname.split('/').filter(Boolean);
+      
+      if (pathSegments.length > 0) {
+        const videoId = pathSegments[0].replace(/\.(mp4|m3u8)$/, '');
+        
+        // Extract library ID from hostname
+        const libraryMatch = host.match(/vz-([a-f0-9-]+)-/);
+        const libraryId = libraryMatch?.[1] || '';
+        
+        return {
+          libraryId,
+          videoId,
+          pullZone: host,
+        };
+      }
+    }
+    
+    // Handle embed URLs
+    else if (url.includes('iframe.mediadelivery.net/embed/')) {
+      const uri = new URL(url);
+      const segments = uri.pathname.split('/');
+      
+      if (segments.length >= 4 && segments[1] === 'embed') {
+        const libraryId = segments[2];
+        const videoId = segments[3];
+        
+        return {
+          libraryId,
+          videoId,
+          pullZone: `vz-${libraryId}-17b.b-cdn.net`,
+        };
+      }
+    }
+  } catch (e) {
+    console.error('Error extracting video info:', e);
+  }
+  
+  return {};
+};
+
+const detectVideoSource = (url: string): { type: string; url: string; videoId?: string } => {
+  if (!url) {
+    return { type: '', url: '' };
+  }
+  
+  const normalizedUrl = url.trim();
+  
+  // Check for Bunny Stream URLs
+  if (normalizedUrl.endsWith('.m3u8') || normalizedUrl.includes('b-cdn.net') || normalizedUrl.includes('mediadelivery.net')) {
+    return { type: SOURCE_BUNNY, url: normalizedUrl };
+  }
+  
+  // Check for YouTube URLs
+  if (normalizedUrl.includes('youtube.com') || normalizedUrl.includes('youtu.be') || /^[a-zA-Z0-9_-]{11}$/.test(normalizedUrl)) {
+    let videoId = '';
+    
+    if (normalizedUrl.includes('youtube.com/watch?v=')) {
+      const urlObj = new URL(normalizedUrl);
+      videoId = urlObj.searchParams.get('v') || '';
+    } else if (normalizedUrl.includes('youtu.be/')) {
+      const urlObj = new URL(normalizedUrl);
+      videoId = urlObj.pathname.split('/').pop() || '';
+    } else if (/^[a-zA-Z0-9_-]{11}$/.test(normalizedUrl)) {
+      videoId = normalizedUrl;
+    }
+    
+    if (videoId) {
+      return { type: SOURCE_YOUTUBE, url: normalizedUrl, videoId };
+    }
+  }
+  
+  // Check for Dailymotion URLs
+  if (normalizedUrl.includes('dailymotion.com') || normalizedUrl.includes('dai.ly/')) {
+    let videoId = '';
+    
+    if (normalizedUrl.includes('dailymotion.com/embed/video/')) {
+      const segments = new URL(normalizedUrl).pathname.split('/');
+      videoId = segments[segments.length - 1];
+    } else if (normalizedUrl.includes('dai.ly/')) {
+      const segments = new URL(normalizedUrl).pathname.split('/');
+      videoId = segments[segments.length - 1];
+    }
+    
+    if (videoId) {
+      return { type: SOURCE_DAILYMOTION, url: normalizedUrl, videoId };
+    }
+  }
+  
+  // Default to Bunny Stream
+  return { type: SOURCE_BUNNY, url: normalizedUrl };
+};
+
+const formatVideoUrls = async (baseUrl: string): Promise<Record<string, string>> => {
+  if (!baseUrl) {
+    return {};
+  }
+
+  try {
+    const sourceInfo = detectVideoSource(baseUrl);
+    const sourceType = sourceInfo.type;
+    
+    // Handle YouTube URLs
+    if (sourceType === SOURCE_YOUTUBE) {
+      const videoId = sourceInfo.videoId || '';
+      
+      return {
+        youtube: `https://www.youtube.com/watch?v=${videoId}`,
+        original: baseUrl,
+        sourceType: SOURCE_YOUTUBE,
+      };
+    }
+    
+    // Handle Dailymotion URLs
+    else if (sourceType === SOURCE_DAILYMOTION) {
+      const videoId = sourceInfo.videoId || '';
+      
+      // Format embed URL properly
+      const embedUrl = `https://www.dailymotion.com/embed/video/${videoId}`;
+      
+      return {
+        dailymotion: embedUrl,
+        embed: embedUrl,
+        original: baseUrl,
+        sourceType: SOURCE_DAILYMOTION,
+      };
+    }
+    
+    // Handle Bunny.net URLs
+    else {
+      // If it's already a direct CDN URL, use it
+      if (baseUrl.includes('b-cdn.net')) {
+        const videoUrls: Record<string, string> = {};
+        
+        // If it's an HLS playlist URL, use it directly
+        if (baseUrl.includes('playlist.m3u8')) {
+          videoUrls['hls'] = baseUrl;
+          videoUrls['original'] = baseUrl;
+          videoUrls['sourceType'] = SOURCE_BUNNY;
+          
+          // Try to construct MP4 URLs from the same base
+          const baseUrlWithoutFile = baseUrl.replace('/playlist.m3u8', '');
+          videoUrls['1080p'] = `${baseUrlWithoutFile}/play_1080p.mp4`;
+          videoUrls['720p'] = `${baseUrlWithoutFile}/play_720p.mp4`;
+          videoUrls['480p'] = `${baseUrlWithoutFile}/play_480p.mp4`;
+          videoUrls['360p'] = `${baseUrlWithoutFile}/play_360p.mp4`;
+        } 
+        // If it's an MP4 URL, use it directly
+        else if (baseUrl.includes('.mp4')) {
+          videoUrls['original'] = baseUrl;
+          videoUrls['sourceType'] = SOURCE_BUNNY;
+          
+          // Try to construct other quality URLs
+          if (baseUrl.includes('play_720p.mp4')) {
+            videoUrls['720p'] = baseUrl;
+            const baseUrlWithoutQuality = baseUrl.replace('play_720p.mp4', '');
+            videoUrls['1080p'] = `${baseUrlWithoutQuality}play_1080p.mp4`;
+            videoUrls['480p'] = `${baseUrlWithoutQuality}play_480p.mp4`;
+            videoUrls['360p'] = `${baseUrlWithoutQuality}play_360p.mp4`;
+            videoUrls['hls'] = `${baseUrlWithoutQuality}playlist.m3u8`;
+          } else {
+            videoUrls['720p'] = baseUrl;
+          }
+        } else {
+          videoUrls['original'] = baseUrl;
+          videoUrls['sourceType'] = SOURCE_BUNNY;
+        }
+        
+        return videoUrls;
+      }
+      
+      // For iframe or embed URLs, try extraction
+      const videoInfo = extractBunnyVideoInfo(baseUrl);
+      if (Object.keys(videoInfo).length === 0) {
+        return { original: baseUrl, sourceType: SOURCE_BUNNY };
+      }
+      
+      const { libraryId, videoId, pullZone } = videoInfo;
+      
+      // Generate video URLs
+      const videoUrls: Record<string, string> = {
+        sourceType: SOURCE_BUNNY,
+        original: baseUrl,
+      };
+      
+      // For web, prefer MP4 over HLS due to better browser support
+      if (typeof window !== 'undefined') {
+        videoUrls['720p'] = `https://${pullZone}/${videoId}/play_720p.mp4`;
+        videoUrls['480p'] = `https://${pullZone}/${videoId}/play_480p.mp4`;
+        videoUrls['360p'] = `https://${pullZone}/${videoId}/play_360p.mp4`;
+        videoUrls['1080p'] = `https://${pullZone}/${videoId}/play_1080p.mp4`;
+        videoUrls['hls'] = `https://${pullZone}/${videoId}/playlist.m3u8`;
+      }
+      
+      return videoUrls;
+    }
+    
+  } catch (e) {
+    console.error('Error formatting video URLs:', e);
+    return { original: baseUrl, sourceType: SOURCE_BUNNY };
+  }
+};
+
 // Use this hook to manage video player state and controls
 export const useVideoPlayer = (movie: Movie, options?: {
   onProgress?: (progress: number) => void;
@@ -79,6 +305,7 @@ export const useVideoPlayer = (movie: Movie, options?: {
   const [showControls, setShowControls] = useState(true);
   const [sourceType, setSourceType] = useState<string>(SOURCE_BUNNY);
   const [videoUrl, setVideoUrl] = useState<string>('');
+  const [processedVideoUrls, setProcessedVideoUrls] = useState<Record<string, string>>({});
   const [isReady, setIsReady] = useState(false);
   const [debugInfo, setDebugInfo] = useState<any>({});
 
@@ -89,57 +316,68 @@ export const useVideoPlayer = (movie: Movie, options?: {
     console.log('Setting up video for movie:', movie.title);
     console.log('Movie video data:', { videoUrl: movie.videoUrl, videoUrls: movie.videoUrls });
 
-    let sourceUrl = '';
-    let sourceType = movie.videoUrls?.sourceType || SOURCE_BUNNY;
+    const setupVideo = async () => {
+      let sourceUrl = '';
+      let detectedSourceType = SOURCE_BUNNY;
 
-    if (sourceType === SOURCE_YOUTUBE) {
-      sourceUrl = movie.videoUrls?.youtube || movie.videoUrl || '';
-    } else if (sourceType === SOURCE_DAILYMOTION) {
-      sourceUrl = movie.videoUrls?.dailymotion || movie.videoUrl || '';
-    } else {
-      // For other sources, prefer direct URLs
-      if (movie.videoUrls?.['1080p']) {
-        sourceUrl = movie.videoUrls['1080p'];
-        setPlayerState(prev => ({...prev, currentQuality: '1080p'}));
-      } else if (movie.videoUrls?.['720p']) {
-        sourceUrl = movie.videoUrls['720p'];
-        setPlayerState(prev => ({...prev, currentQuality: '720p'}));
-      } else if (movie.videoUrls?.['480p']) {
-        sourceUrl = movie.videoUrls['480p'];
-        setPlayerState(prev => ({...prev, currentQuality: '480p'}));
-      } else if (movie.videoUrls?.original) {
-        sourceUrl = movie.videoUrls.original;
-      } else if (movie.videoUrl) {
-        sourceUrl = movie.videoUrl;
+      // First, try to format the video URLs properly
+      const formattedUrls = await formatVideoUrls(movie.videoUrl || '');
+      setProcessedVideoUrls(formattedUrls);
+      
+      detectedSourceType = formattedUrls.sourceType || SOURCE_BUNNY;
+
+      if (detectedSourceType === SOURCE_YOUTUBE) {
+        sourceUrl = formattedUrls.youtube || movie.videoUrl || '';
+      } else if (detectedSourceType === SOURCE_DAILYMOTION) {
+        sourceUrl = formattedUrls.dailymotion || formattedUrls.embed || movie.videoUrl || '';
+      } else {
+        // For Bunny Stream, prefer the best quality available
+        if (formattedUrls['720p']) {
+          sourceUrl = formattedUrls['720p'];
+          setPlayerState(prev => ({...prev, currentQuality: '720p'}));
+        } else if (formattedUrls['480p']) {
+          sourceUrl = formattedUrls['480p'];
+          setPlayerState(prev => ({...prev, currentQuality: '480p'}));
+        } else if (formattedUrls['hls']) {
+          sourceUrl = formattedUrls['hls'];
+          setPlayerState(prev => ({...prev, currentQuality: 'hls'}));
+        } else if (formattedUrls['original']) {
+          sourceUrl = formattedUrls['original'];
+        } else if (movie.videoUrl) {
+          sourceUrl = movie.videoUrl;
+        }
       }
-    }
 
-    console.log('Selected video URL:', sourceUrl);
-    console.log('Source type:', sourceType);
+      console.log('Selected video URL:', sourceUrl);
+      console.log('Source type:', detectedSourceType);
 
-    setSourceType(sourceType);
-    setVideoUrl(sourceUrl);
-    setDebugInfo({
-      sourceUrl,
-      sourceType,
-      canPlay: ReactPlayer.canPlay(sourceUrl),
-      movieData: movie
-    });
+      setSourceType(detectedSourceType);
+      setVideoUrl(sourceUrl);
+      setDebugInfo({
+        sourceUrl,
+        sourceType: detectedSourceType,
+        canPlay: ReactPlayer.canPlay(sourceUrl),
+        formattedUrls,
+        movieData: movie
+      });
 
-    // Set available qualities
-    const qualities = Object.keys(movie.videoUrls || {}).filter(key => 
-      key !== 'sourceType' && 
-      key !== 'original' && 
-      key !== 'youtube' && 
-      key !== 'dailymotion' && 
-      key !== 'embed'
-    );
+      // Set available qualities
+      const qualities = Object.keys(formattedUrls).filter(key => 
+        key !== 'sourceType' && 
+        key !== 'original' && 
+        key !== 'youtube' && 
+        key !== 'dailymotion' && 
+        key !== 'embed' &&
+        key !== 'hls'
+      );
 
-    setPlayerState(prev => ({
-      ...prev,
-      availableQualities: qualities
-    }));
+      setPlayerState(prev => ({
+        ...prev,
+        availableQualities: qualities
+      }));
+    };
 
+    setupVideo();
   }, [movie]);
 
   // Set up auto-hide controls
@@ -249,9 +487,9 @@ export const useVideoPlayer = (movie: Movie, options?: {
   const changeQuality = useCallback((quality: string) => {
     if (quality === playerState.currentQuality) return;
     
-    if (movie.videoUrls && movie.videoUrls[quality]) {
+    if (processedVideoUrls && processedVideoUrls[quality]) {
       const currentTime = playerRef.current?.getCurrentTime() || 0;
-      setVideoUrl(movie.videoUrls[quality]);
+      setVideoUrl(processedVideoUrls[quality]);
       
       // After source change, seek to previous position
       setTimeout(() => {
@@ -262,7 +500,7 @@ export const useVideoPlayer = (movie: Movie, options?: {
     }
     
     setPlayerState(prev => ({...prev, currentQuality: quality}));
-  }, [movie.videoUrls, playerState.currentQuality]);
+  }, [processedVideoUrls, playerState.currentQuality]);
 
   // Handle player progress
   const handleProgress = useCallback(({ played, loaded }: { played: number, loaded: number }) => {
@@ -348,6 +586,7 @@ export const useVideoPlayer = (movie: Movie, options?: {
     isReady,
     sourceType,
     videoUrl,
+    processedVideoUrls,
     debugInfo,
     togglePlay,
     toggleMute,
@@ -391,6 +630,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     isReady,
     sourceType,
     videoUrl,
+    processedVideoUrls,
     debugInfo,
     togglePlay,
     toggleMute,
@@ -484,7 +724,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           </p>
           <div className="text-sm text-gray-400 bg-gray-800 p-4 rounded-lg">
             <p>Debug Info:</p>
-            <pre>{JSON.stringify(debugInfo, null, 2)}</pre>
+            <pre className="text-xs overflow-auto max-h-32">{JSON.stringify(debugInfo, null, 2)}</pre>
           </div>
           {onClose && (
             <button 
@@ -520,6 +760,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
               <li>Vimeo URLs</li>
               <li>DailyMotion URLs</li>
             </ul>
+            <p className="mt-2">Current URL: {videoUrl.substring(0, 50)}...</p>
+            <p>Source Type: {sourceType}</p>
           </div>
           {onClose && (
             <button 
@@ -556,7 +798,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
       attributes: {
         controlsList: 'nodownload',
         disablePictureInPicture: true,
-        playsInline: true
+        playsInline: true,
+        crossOrigin: 'anonymous'
       }
     }
   };
@@ -569,8 +812,8 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
     >
       {/* Debug overlay for development */}
       {process.env.NODE_ENV === 'development' && (
-        <div className="absolute top-4 left-4 bg-black/80 text-white p-2 rounded text-xs z-50">
-          <p>URL: {videoUrl.substring(0, 50)}...</p>
+        <div className="absolute top-4 left-4 bg-black/80 text-white p-2 rounded text-xs z-50 max-w-sm">
+          <p>URL: {videoUrl.substring(0, 40)}...</p>
           <p>Type: {sourceType}</p>
           <p>Can Play: {ReactPlayer.canPlay(videoUrl) ? 'Yes' : 'No'}</p>
           <p>Ready: {isReady ? 'Yes' : 'No'}</p>
@@ -589,7 +832,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         muted={playerState.muted}
         playbackRate={playerState.playbackRate}
         onProgress={handleProgress}
-        onBufferStart={handleBufferStart}
+        onBuffer={handleBufferStart}
         onBufferEnd={handleBufferEnd}
         onReady={handleReady}
         onDuration={handleDuration}
@@ -600,6 +843,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
         onEnded={handleEnded}
         config={playerConfig}
         className="react-player"
+        controls={false}
       />
 
       {/* Loading overlay */}
@@ -625,6 +869,7 @@ const VideoPlayer: React.FC<VideoPlayerProps> = ({
           <div className="text-sm text-gray-400 bg-gray-800 p-4 rounded-lg mb-4 max-w-lg">
             <p>Video URL: {videoUrl}</p>
             <p>Can Play: {ReactPlayer.canPlay(videoUrl) ? 'Yes' : 'No'}</p>
+            <p>Source Type: {sourceType}</p>
           </div>
           <button 
             className="px-4 py-2 bg-red-600 text-white rounded hover:bg-red-700 transition"
