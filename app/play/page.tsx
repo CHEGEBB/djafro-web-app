@@ -4,7 +4,7 @@
 import React, { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, 
-         SkipForward, SkipBack, Loader, AlertCircle } from 'lucide-react';
+         SkipForward, SkipBack, Loader, AlertCircle, Minimize } from 'lucide-react';
 import { useMovieService, Movie } from '@/services/movie_service';
 
 export default function PlayPage() {
@@ -13,6 +13,8 @@ export default function PlayPage() {
   const movieId = searchParams.get('id');
   const { service, isInitialized } = useMovieService();
   const videoRef = useRef<HTMLVideoElement>(null);
+  const iframeRef = useRef<HTMLIFrameElement>(null);
+  const containerRef = useRef<HTMLDivElement>(null);
   
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
@@ -28,6 +30,7 @@ export default function PlayPage() {
   const [progress, setProgress] = useState(0);
   const [buffered, setBuffered] = useState(0);
   const [isBuffering, setIsBuffering] = useState(false);
+  const [isFullscreen, setIsFullscreen] = useState(false);
   
   // Track player ready state
   const [playerReady, setPlayerReady] = useState(false);
@@ -306,16 +309,54 @@ export default function PlayPage() {
     videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 10, 0);
   }, []);
   
-  const toggleFullscreen = useCallback(() => {
-    if (!document.fullscreenElement) {
-      document.documentElement.requestFullscreen().catch(err => {
-        console.error(`Error attempting to enable full-screen mode: ${err.message}`);
-      });
-    } else {
-      if (document.exitFullscreen) {
-        document.exitFullscreen();
+  // Enhanced fullscreen handling for both HTML5 and iframe players
+  const toggleFullscreen = useCallback(async () => {
+    try {
+      if (!document.fullscreenElement) {
+        // Enter fullscreen
+        if (playerType === 'html5' && videoRef.current) {
+          // For HTML5 video, try video element first, then container
+          if (videoRef.current.requestFullscreen) {
+            await videoRef.current.requestFullscreen();
+          } else if (containerRef.current?.requestFullscreen) {
+            await containerRef.current.requestFullscreen();
+          }
+        } else if (containerRef.current) {
+          // For iframe players, fullscreen the container
+          await containerRef.current.requestFullscreen();
+        }
+        setIsFullscreen(true);
+      } else {
+        // Exit fullscreen
+        if (document.exitFullscreen) {
+          await document.exitFullscreen();
+        }
+        setIsFullscreen(false);
       }
+    } catch (err) {
+      console.error(`Error toggling fullscreen: ${err}`);
+      // Fallback: just toggle the state for styling purposes
+      setIsFullscreen(!isFullscreen);
     }
+  }, [playerType, isFullscreen]);
+  
+  // Listen for fullscreen changes
+  useEffect(() => {
+    const handleFullscreenChange = () => {
+      setIsFullscreen(!!document.fullscreenElement);
+    };
+    
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    document.addEventListener('webkitfullscreenchange', handleFullscreenChange);
+    document.addEventListener('mozfullscreenchange', handleFullscreenChange);
+    document.addEventListener('MSFullscreenChange', handleFullscreenChange);
+    
+    return () => {
+      document.removeEventListener('fullscreenchange', handleFullscreenChange);
+      document.removeEventListener('webkitfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('mozfullscreenchange', handleFullscreenChange);
+      document.removeEventListener('MSFullscreenChange', handleFullscreenChange);
+    };
   }, []);
   
   // Controls visibility management
@@ -365,27 +406,35 @@ export default function PlayPage() {
           handleBack();
         }
       } else if (e.key === ' ' || e.key === 'k') {
-        // Space or K for play/pause
-        e.preventDefault();
-        togglePlay();
+        // Space or K for play/pause (only for HTML5 player)
+        if (playerType === 'html5') {
+          e.preventDefault();
+          togglePlay();
+        }
       } else if (e.key === 'm') {
-        // M for mute/unmute
-        toggleMute();
+        // M for mute/unmute (only for HTML5 player)
+        if (playerType === 'html5') {
+          toggleMute();
+        }
       } else if (e.key === 'ArrowRight') {
-        // Right arrow for forward 10s
-        handleForward();
+        // Right arrow for forward 10s (only for HTML5 player)
+        if (playerType === 'html5') {
+          handleForward();
+        }
       } else if (e.key === 'ArrowLeft') {
-        // Left arrow for backward 10s
-        handleBackward();
+        // Left arrow for backward 10s (only for HTML5 player)
+        if (playerType === 'html5') {
+          handleBackward();
+        }
       } else if (e.key === 'f') {
-        // F for fullscreen
+        // F for fullscreen (works for all player types)
         toggleFullscreen();
       }
     };
     
     document.addEventListener('keydown', handleKeyDown);
     return () => document.removeEventListener('keydown', handleKeyDown);
-  }, [handleBack, togglePlay, toggleMute, handleForward, handleBackward, toggleFullscreen]);
+  }, [handleBack, togglePlay, toggleMute, handleForward, handleBackward, toggleFullscreen, playerType]);
   
   // Format time (seconds to MM:SS)
   const formatTime = useCallback((seconds: number) => {
@@ -454,7 +503,10 @@ export default function PlayPage() {
   return (
     <div className="fixed inset-0 bg-black flex flex-col">
       {/* Video container */}
-      <div className="relative w-full h-full overflow-hidden">
+      <div 
+        ref={containerRef}
+        className={`relative w-full h-full overflow-hidden ${isFullscreen ? 'bg-black' : ''}`}
+      >
         {/* HTML5 Video Player */}
         {playerType === 'html5' && videoSource && (
           <video
@@ -479,6 +531,7 @@ export default function PlayPage() {
         {/* Iframe Players (YouTube, Dailymotion, etc) */}
         {(playerType === 'youtube' || playerType === 'dailymotion' || playerType === 'iframe') && embedUrl && (
           <iframe
+            ref={iframeRef}
             src={embedUrl}
             className="w-full h-full border-0"
             allow="autoplay; fullscreen; picture-in-picture; encrypted-media; accelerometer; gyroscope"
@@ -491,14 +544,14 @@ export default function PlayPage() {
         
         {/* Buffering indicator */}
         {isBuffering && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none">
+          <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none z-30">
             <Loader className="w-12 h-12 animate-spin text-red-600" />
           </div>
         )}
         
         {/* Controls overlay - only show for HTML5 player */}
         {playerType === 'html5' && showControls && (
-          <div className="absolute inset-0 flex flex-col justify-between p-4 bg-gradient-to-b from-black/70 via-transparent to-black/70">
+          <div className="absolute inset-0 flex flex-col justify-between p-4 bg-gradient-to-b from-black/70 via-transparent to-black/70 z-20">
             {/* Top bar with title and back button */}
             <div className="flex items-center justify-between w-full">
               <button 
@@ -637,8 +690,13 @@ export default function PlayPage() {
                   <button 
                     onClick={toggleFullscreen}
                     className="text-white hover:text-red-500 transition-colors"
+                    title={isFullscreen ? 'Exit fullscreen (f)' : 'Enter fullscreen (f)'}
                   >
-                    <Maximize size={20} />
+                    {isFullscreen ? (
+                      <Minimize size={20} />
+                    ) : (
+                      <Maximize size={20} />
+                    )}
                   </button>
                 </div>
               </div>
@@ -646,16 +704,61 @@ export default function PlayPage() {
           </div>
         )}
         
-        {/* Minimal controls for iframe players */}
+        {/* Enhanced controls for iframe players (YouTube, Dailymotion, etc) */}
         {(playerType === 'youtube' || playerType === 'dailymotion' || playerType === 'iframe') && showControls && (
-          <div className="absolute top-0 left-0 right-0 p-4 bg-gradient-to-b from-black/70 to-transparent">
-            <button 
-              onClick={handleBack} 
-              className="flex items-center space-x-2 text-white hover:text-red-500 transition-colors"
-            >
-              <ArrowLeft size={24} />
-              <span className="text-lg font-medium">Back</span>
-            </button>
+          <div className="absolute inset-0 pointer-events-none z-20">
+            {/* Top bar with title, back button */}
+            <div className="flex items-center justify-between w-full p-4 bg-gradient-to-b from-black/70 to-transparent pointer-events-auto">
+              <button 
+                onClick={handleBack} 
+                className="flex items-center space-x-2 text-white hover:text-red-500 transition-colors"
+              >
+                <ArrowLeft size={24} />
+                <span className="text-lg font-medium">Back</span>
+              </button>
+              
+              <h1 className="text-white font-bold text-lg md:text-xl truncate max-w-md">
+                {movie.title}
+              </h1>
+              
+              <button 
+                onClick={toggleFullscreen}
+                className="text-white hover:text-red-500 transition-colors"
+                title={isFullscreen ? 'Exit fullscreen (f)' : 'Enter fullscreen (f)'}
+              >
+                {isFullscreen ? (
+                  <Minimize size={24} />
+                ) : (
+                  <Maximize size={24} />
+                )}
+              </button>
+            </div>
+            
+            {/* Bottom bar for iframe players */}
+            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent pointer-events-auto">
+              <div className="flex items-center justify-between">
+                <div className="flex items-center space-x-2 text-white text-sm">
+                  <span className="px-2 py-1 bg-red-600 rounded text-xs font-medium">
+                    {playerType.toUpperCase()}
+                  </span>
+                  <span>Player controls available in video</span>
+                </div>
+                
+                <div className="flex items-center space-x-2 text-white text-sm">
+                  <span>Press F for fullscreen</span>
+                </div>
+              </div>
+            </div>
+          </div>
+        )}
+        
+        {/* Loading indicator for iframe players */}
+        {(playerType === 'youtube' || playerType === 'dailymotion' || playerType === 'iframe') && !playerReady && (
+          <div className="absolute inset-0 flex items-center justify-center bg-black/60 z-30">
+            <div className="text-center">
+              <Loader className="w-12 h-12 animate-spin text-red-600 mx-auto mb-4" />
+              <p className="text-white text-lg">Loading {playerType} player...</p>
+            </div>
           </div>
         )}
       </div>
