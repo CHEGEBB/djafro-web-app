@@ -893,7 +893,7 @@ export default function PlayPage() {
         )}
         
         {/* Resume from saved progress overlay */}
-        {playerType === 'html5' && playerReady && movie.progress && movie.progress > 0 && movie.progress < 0.95 && autoResumeFromSaved && (
+        {/* {playerType === 'html5' && playerReady && movie.progress && movie.progress > 0 && movie.progress < 0.95 && autoResumeFromSaved && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-40">
             <div className="bg-gray-900 p-6 rounded-lg max-w-md text-center">
               <h3 className="text-xl font-bold text-white mb-4">Resume Watching?</h3>
@@ -916,7 +916,7 @@ export default function PlayPage() {
               </div>
             </div>
           </div>
-        )}
+        )} */}
         
         {/* Buffering indicator */}
         {isBuffering && (
