@@ -2,6 +2,7 @@
 'use client'
 import { Client, Databases, ID, Query, Models } from 'appwrite';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
+import { authService, AuthState, AuthUser } from './auth_service';
 
 // Define types
 export type Movie = {
@@ -37,6 +38,7 @@ class MovieService {
   private databases: Databases;
   private isInitialized = false;
   private userId: string | null = null;
+  private authUnsubscribe: (() => void) | null = null;
   
   // Cache for movie lists
   private movieListCache: Record<string, Movie[]> = {};
@@ -46,6 +48,26 @@ class MovieService {
   constructor() {
     this.client = new Client();
     this.databases = new Databases(this.client);
+    
+    // Subscribe to auth state changes
+    this.setupAuthSubscription();
+  }
+
+  private setupAuthSubscription(): void {
+    // Subscribe to auth state changes
+    this.authUnsubscribe = authService.subscribe((authState: AuthState) => {
+      const newUserId = authState.user?.$id || null;
+      
+      // If user changed, update userId and clear cache
+      if (this.userId !== newUserId) {
+        this.userId = newUserId;
+        this.clearCache(); // Clear cache when user changes
+      }
+    });
+    
+    // Get initial auth state
+    const currentState = authService.getState();
+    this.userId = currentState.user?.$id || null;
   }
 
   async initialize(): Promise<void> {
@@ -59,22 +81,38 @@ class MovieService {
         .setEndpoint(process.env.NEXT_PUBLIC_APPWRITE_ENDPOINT)
         .setProject(process.env.NEXT_PUBLIC_APPWRITE_PROJECT_ID);
 
-      // Try to get current user ID if available
-      try {
-        // This assumes you have an auth service or a way to get the current user
-        // You may need to adjust this based on your authentication system
-        const account = await this.client.account.get();
-        this.userId = account.$id;
-      } catch (e) {
-        // Not authenticated, continue as guest
-        this.userId = null;
-      }
+      // Get current user from auth service instead of directly from client
+      const authState = authService.getState();
+      this.userId = authState.user?.$id || null;
 
       this.isInitialized = true;
-      console.log('MovieService initialized successfully');
+      console.log('MovieService initialized successfully', {
+        userId: this.userId,
+        isAuthenticated: authState.isAuthenticated
+      });
     } catch (error) {
       console.error('MovieService initialization error:', error);
     }
+  }
+
+  // Clean up subscriptions
+  destroy(): void {
+    if (this.authUnsubscribe) {
+      this.authUnsubscribe();
+      this.authUnsubscribe = null;
+    }
+  }
+
+  // Get current user info
+  getCurrentUser(): AuthUser | null {
+    const authState = authService.getState();
+    return authState.user;
+  }
+
+  // Check if user is authenticated
+  isAuthenticated(): boolean {
+    const authState = authService.getState();
+    return authState.isAuthenticated;
   }
 
   // Video URL processing functions
@@ -798,7 +836,8 @@ class MovieService {
       await this.initialize();
     }
     
-    if (!this.userId) {
+    // Check authentication using auth service
+    if (!this.isAuthenticated() || !this.userId) {
       throw new Error('User must be logged in to manage wishlist');
     }
     
@@ -862,7 +901,8 @@ class MovieService {
       await this.initialize();
     }
     
-    if (!this.userId) {
+    // Check authentication using auth service
+    if (!this.isAuthenticated() || !this.userId) {
       throw new Error('User must be logged in to update progress');
     }
     
@@ -1085,6 +1125,11 @@ export const MovieServiceProvider: React.FC<{ children: ReactNode }> = ({ childr
     };
 
     initializeService();
+
+    // Cleanup function to destroy service on unmount
+    return () => {
+      service.destroy();
+    };
   }, [service]);
 
   return (

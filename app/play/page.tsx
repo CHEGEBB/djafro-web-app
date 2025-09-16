@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/play/page.tsx
 'use client';
 
@@ -734,21 +735,7 @@ export default function PlayPage() {
               </button>
             </div>
             
-            {/* Bottom bar for iframe players */}
-            <div className="absolute bottom-0 left-0 right-0 p-4 bg-gradient-to-t from-black/70 to-transparent pointer-events-auto">
-              <div className="flex items-center justify-between">
-                <div className="flex items-center space-x-2 text-white text-sm">
-                  <span className="px-2 py-1 bg-red-600 rounded text-xs font-medium">
-                    {playerType.toUpperCase()}
-                  </span>
-                  <span>Player controls available in video</span>
-                </div>
-                
-                <div className="flex items-center space-x-2 text-white text-sm">
-                  <span>Press F for fullscreen</span>
-                </div>
-              </div>
-            </div>
+
           </div>
         )}
         
