@@ -1,4 +1,3 @@
-// app/movies/page.tsx
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -6,21 +5,23 @@ import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import LayoutController from '@/components/LayoutController';
 import { useMovieService } from '@/services/movie_service';
-import AnimatedMovieBanner from '@/components/MovieBanner';
-import { ChevronDown, Filter, Search, X, Grid, List, Clock, Star, Heart, FilmIcon } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, Heart, FilmIcon, Play, Clock, Calendar, Filter, ChevronDown, X } from 'lucide-react';
 import '@/styles/MoviesPage.scss';
 
-// Movie card component
+// Interfaces
 interface Movie {
   id: number;
   title: string;
   posterUrl?: string;
+  backdropUrl?: string;
   progress?: number;
   isWishlisted?: boolean;
   rating?: number;
   year?: number;
   duration?: string;
   genres?: string[];
+  overview?: string;
+  isFeatured?: boolean;
 }
 
 interface MovieCardProps {
@@ -29,6 +30,353 @@ interface MovieCardProps {
   onToggleWishlist: (movieId: number) => void;
 }
 
+interface MoviesSection {
+  title: string;
+  movies: Movie[];
+  id: string;
+  autoScroll?: boolean;
+}
+
+// Responsive Genre Selector Component
+const ResponsiveGenreSelector: React.FC<{
+  genres: string[];
+  selectedGenre: string;
+  onGenreSelect: (genre: string) => void;
+  movieCount: number;
+}> = ({ genres, selectedGenre, onGenreSelect, movieCount }) => {
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const [isMobile, setIsMobile] = useState(false);
+  const dropdownRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const checkMobile = () => {
+      setIsMobile(window.innerWidth < 768);
+    };
+    
+    checkMobile();
+    window.addEventListener('resize', checkMobile);
+    
+    return () => window.removeEventListener('resize', checkMobile);
+  }, []);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target as Node)) {
+        setIsDropdownOpen(false);
+      }
+    };
+
+    document.addEventListener('mousedown', handleClickOutside);
+    return () => document.removeEventListener('mousedown', handleClickOutside);
+  }, []);
+
+  const handleGenreClick = (genre: string) => {
+    onGenreSelect(genre);
+    setIsDropdownOpen(false);
+  };
+
+  if (isMobile) {
+    // Mobile Dropdown Design
+    return (
+      <div className="px-4 sm:px-6 mb-6">
+        <div className="genre-filter-mobile">
+          {/* Mobile Header */}
+          <div className="flex items-center justify-between mb-4">
+            <div className="flex items-center gap-3">
+              <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
+                <Filter className="w-5 h-5 text-white" />
+              </div>
+              <div>
+                <h3 className="text-white font-bold text-lg">Filter Movies</h3>
+                <p className="text-gray-400 text-sm">{movieCount} movies available</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Mobile Dropdown */}
+          <div ref={dropdownRef} className="relative">
+            <button
+              onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+              className="w-full bg-gradient-to-r from-gray-800/80 to-gray-700/80 backdrop-blur-xl border border-gray-600/30 rounded-2xl px-6 py-4 flex items-center justify-between transition-all duration-300 hover:border-red-500/40 hover:shadow-lg hover:shadow-red-500/10"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-white font-semibold text-lg">{selectedGenre}</span>
+              </div>
+              <ChevronDown className={`w-5 h-5 text-gray-400 transition-transform duration-300 ${isDropdownOpen ? 'rotate-180' : ''}`} />
+            </button>
+
+            {isDropdownOpen && (
+              <div className="absolute top-full left-0 right-0 mt-2 bg-gray-900/95 backdrop-blur-2xl border border-gray-700/50 rounded-2xl shadow-2xl z-50 max-h-80 overflow-y-auto">
+                <div className="p-2">
+                  {genres.map((genre, index) => (
+                    <button
+                      key={genre}
+                      onClick={() => handleGenreClick(genre)}
+                      className={`w-full text-left px-4 py-3 rounded-xl transition-all duration-200 flex items-center gap-3 ${
+                        selectedGenre === genre
+                          ? 'bg-gradient-to-r from-red-500/20 to-red-600/20 text-red-400 border border-red-500/30'
+                          : 'text-gray-300 hover:bg-gray-800/60 hover:text-white'
+                      }`}
+                      style={{ animationDelay: `${index * 50}ms` }}
+                    >
+                      <div className={`w-2 h-2 rounded-full ${selectedGenre === genre ? 'bg-red-500' : 'bg-gray-600'}`}></div>
+                      <span className="font-medium">{genre}</span>
+                      {selectedGenre === genre && (
+                        <div className="ml-auto">
+                          <div className="w-6 h-6 bg-red-500/20 rounded-full flex items-center justify-center">
+                            <div className="w-2 h-2 bg-red-500 rounded-full"></div>
+                          </div>
+                        </div>
+                      )}
+                    </button>
+                  ))}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Clear Filter for Mobile */}
+          {selectedGenre !== 'All' && (
+            <div className="mt-4 flex items-center justify-between bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-xl px-4 py-3">
+              <div className="flex items-center gap-2">
+                <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
+                <span className="text-red-400 text-sm font-medium">Filtered by "{selectedGenre}"</span>
+              </div>
+              <button
+                onClick={() => onGenreSelect('All')}
+                className="p-2 hover:bg-red-500/20 rounded-lg transition-colors"
+              >
+                <X className="w-4 h-4 text-red-400" />
+              </button>
+            </div>
+          )}
+        </div>
+      </div>
+    );
+  }
+
+  // Desktop/Tablet Horizontal Scrollable Design
+  return (
+    <div className="px-4 sm:px-6 lg:px-8 mb-8">
+      <div className="genre-filter-desktop">
+        {/* Desktop Header */}
+        <div className="flex items-center gap-4 mb-6">
+          <div className="flex items-center gap-3">
+            <div className="w-12 h-12 bg-gradient-to-br from-red-500 via-red-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
+              <Filter className="w-6 h-6 text-white" />
+            </div>
+            <div>
+              <h3 className="text-2xl font-bold bg-gradient-to-r from-white via-gray-100 to-gray-300 bg-clip-text text-transparent">
+                Filter by Genre
+              </h3>
+              <p className="text-gray-400 text-sm font-medium">{movieCount} movies available</p>
+            </div>
+          </div>
+        </div>
+
+        {/* Desktop Genre Pills */}
+        <div className="relative">
+          <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4">
+            {genres.map((genre, index) => (
+              <button
+                key={genre}
+                onClick={() => onGenreSelect(genre)}
+                className={`flex-shrink-0 relative px-6 py-3 rounded-2xl font-semibold text-sm transition-all duration-300 transform hover:scale-105 ${
+                  selectedGenre === genre
+                    ? 'bg-gradient-to-r from-red-500 via-red-600 to-pink-600 text-white shadow-2xl shadow-red-500/40 border-2 border-red-400/50'
+                    : 'bg-gradient-to-r from-gray-800/80 via-gray-700/80 to-gray-800/80 text-gray-300 border-2 border-gray-600/30 hover:border-gray-500/50 hover:text-white backdrop-blur-xl'
+                }`}
+                style={{ 
+                  animationDelay: `${index * 100}ms`,
+                  minWidth: 'fit-content'
+                }}
+              >
+                {selectedGenre === genre && (
+                  <div className="absolute inset-0 bg-gradient-to-r from-red-500/20 to-pink-600/20 rounded-2xl animate-pulse"></div>
+                )}
+                <span className="relative z-10 flex items-center gap-2">
+                  <div className={`w-2 h-2 rounded-full ${selectedGenre === genre ? 'bg-white' : 'bg-gray-500'}`}></div>
+                  {genre}
+                </span>
+                {selectedGenre === genre && (
+                  <div className="absolute -top-1 -right-1 w-4 h-4 bg-white rounded-full flex items-center justify-center">
+                    <div className="w-2 h-2 bg-red-500 rounded-full animate-ping"></div>
+                  </div>
+                )}
+              </button>
+            ))}
+          </div>
+          
+          {/* Desktop Gradient Overlay for Scroll Indication */}
+          <div className="absolute right-0 top-0 bottom-4 w-20 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
+        </div>
+
+        {/* Clear Filter for Desktop */}
+        {selectedGenre !== 'All' && (
+          <div className="mt-6 flex items-center justify-between bg-gradient-to-r from-red-500/10 via-pink-500/5 to-red-500/10 backdrop-blur-2xl border border-red-500/20 rounded-2xl px-6 py-4">
+            <div className="flex items-center gap-3">
+              <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
+              <span className="text-red-400 font-semibold">
+                Showing movies in "{selectedGenre}" genre
+              </span>
+            </div>
+            <button
+              onClick={() => onGenreSelect('All')}
+              className="flex items-center gap-2 px-4 py-2 bg-red-500/20 hover:bg-red-500/30 text-red-400 rounded-xl transition-all duration-300 font-semibold"
+            >
+              <X className="w-4 h-4" />
+              Clear Filter
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
+
+// Movie Hero Banner Component
+const MovieHeroBanner: React.FC<{ 
+  movies: Movie[]; 
+  onPlay: (movie: Movie) => void; 
+  onToggleWishlist: (movieId: number) => void 
+}> = ({ movies, onPlay, onToggleWishlist }) => {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const [isAutoPlaying, setIsAutoPlaying] = useState(true);
+  const intervalRef = useRef<NodeJS.Timeout>();
+
+  const currentMovie = movies[currentIndex];
+
+  useEffect(() => {
+    if (isAutoPlaying && movies.length > 1) {
+      intervalRef.current = setInterval(() => {
+        setCurrentIndex((prev) => (prev + 1) % movies.length);
+      }, 8000);
+    }
+
+    return () => {
+      if (intervalRef.current) {
+        clearInterval(intervalRef.current);
+      }
+    };
+  }, [isAutoPlaying, movies.length]);
+
+  const nextSlide = () => {
+    setCurrentIndex((prev) => (prev + 1) % movies.length);
+    setIsAutoPlaying(false);
+  };
+
+  const prevSlide = () => {
+    setCurrentIndex((prev) => (prev - 1 + movies.length) % movies.length);
+    setIsAutoPlaying(false);
+  };
+
+  if (!currentMovie || movies.length === 0) {
+    return (
+      <div className="hero-banner-skeleton">
+        <div className="bg-gray-800 animate-pulse rounded-lg h-[70vh] flex items-center justify-center">
+          <FilmIcon className="w-20 h-20 text-gray-600" />
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className="hero-banner">
+      <div 
+        className="hero-banner__background"
+        style={{
+          backgroundImage: `linear-gradient(
+            45deg,
+            rgba(0, 0, 0, 0.9) 0%,
+            rgba(0, 0, 0, 0.6) 30%,
+            rgba(0, 0, 0, 0.4) 70%,
+            rgba(0, 0, 0, 0.8) 100%
+          ), url(${currentMovie.backdropUrl || currentMovie.posterUrl})`
+        }}
+      >
+        <div className="hero-banner__content">
+          <div className="hero-banner__info">
+            <div className="hero-banner__meta">
+              <span className="featured-badge">Featured</span>
+              {currentMovie.year && <span className="hero-banner__year">{currentMovie.year}</span>}
+              {currentMovie.rating && (
+                <div className="hero-banner__rating">
+                  <Star className="w-4 h-4 fill-yellow-400 text-yellow-400" />
+                  <span>{currentMovie.rating.toFixed(1)}</span>
+                </div>
+              )}
+              {currentMovie.duration && <span className="hero-banner__duration">{currentMovie.duration}</span>}
+            </div>
+
+            <h1 className="hero-banner__title">{currentMovie.title}</h1>
+
+            {currentMovie.genres && currentMovie.genres.length > 0 && (
+              <div className="hero-banner__genres">
+                {currentMovie.genres.slice(0, 3).map((genre, index) => (
+                  <span key={`${currentMovie.id}-genre-${index}`} className="hero-banner__genre">
+                    {genre}
+                  </span>
+                ))}
+              </div>
+            )}
+
+            {currentMovie.overview && (
+              <p className="hero-banner__overview">
+                {currentMovie.overview.length > 250 
+                  ? `${currentMovie.overview.substring(0, 250)}...` 
+                  : currentMovie.overview}
+              </p>
+            )}
+
+            <div className="hero-banner__actions">
+              <button 
+                className="hero-banner__play-btn"
+                onClick={() => onPlay(currentMovie)}
+              >
+                <Play className="w-6 h-6" />
+                <span>Watch Now</span>
+              </button>
+              <button 
+                className={`hero-banner__wishlist-btn ${currentMovie.isWishlisted ? 'wishlisted' : ''}`}
+                onClick={() => onToggleWishlist(currentMovie.id)}
+              >
+                <Heart className={`w-5 h-5 ${currentMovie.isWishlisted ? 'fill-red-500 text-red-500' : ''}`} />
+                <span>{currentMovie.isWishlisted ? 'Wishlisted' : 'My List'}</span>
+              </button>
+            </div>
+          </div>
+
+          {movies.length > 1 && (
+            <>
+              <button className="hero-banner__nav hero-banner__nav--prev" onClick={prevSlide}>
+                <ChevronLeft className="w-7 h-7" />
+              </button>
+              <button className="hero-banner__nav hero-banner__nav--next" onClick={nextSlide}>
+                <ChevronRight className="w-7 h-7" />
+              </button>
+
+              <div className="hero-banner__indicators">
+                {movies.map((_, index) => (
+                  <button
+                    key={`indicator-${index}`}
+                    className={`hero-banner__indicator ${index === currentIndex ? 'active' : ''}`}
+                    onClick={() => {
+                      setCurrentIndex(index);
+                      setIsAutoPlaying(false);
+                    }}
+                  />
+                ))}
+              </div>
+            </>
+          )}
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Movie Card Component
 const MovieCard: React.FC<MovieCardProps> = ({ movie, onPlay, onToggleWishlist }) => {
   const [isHovered, setIsHovered] = useState(false);
   
@@ -38,517 +386,495 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onPlay, onToggleWishlist }
       onMouseEnter={() => setIsHovered(true)}
       onMouseLeave={() => setIsHovered(false)}
     >
-      <div className="movie-card__poster-container">
-        <Image 
-          src={movie.posterUrl || '/images/placeholder.jpg'}
-          alt={movie.title}
-          fill
-          sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 240px"
-          className="movie-card__poster"
-        />
-        
-        {/* Progress bar if movie has progress */}
-        {movie.progress !== undefined && movie.progress > 0 && (
-          <div className="movie-card__progress-bar">
-            <div 
-              className="movie-card__progress-fill" 
-              style={{ width: `${movie.progress * 100}%` }}
-            ></div>
-          </div>
-        )}
-        
-        {/* Hover overlay with actions */}
-        {isHovered && (
-          <div className="movie-card__overlay">
-            <div className="movie-card__actions">
-              <button 
-                className="movie-card__play-btn"
-                onClick={() => onPlay(movie)}
-              >
-                Play
-              </button>
-              <button 
-                className={`movie-card__wishlist-btn ${movie.isWishlisted ? 'active' : ''}`}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  onToggleWishlist(movie.id);
-                }}
-              >
-                <Heart className={movie.isWishlisted ? 'filled' : ''} />
-              </button>
+      <div className="movie-card__poster">
+        <div className="aspect-[2/3] rounded-xl overflow-hidden bg-gray-800 relative">
+          <Image 
+            src={movie.posterUrl || '/images/placeholder.jpg'}
+            alt={movie.title}
+            fill
+            className="object-cover transition-transform duration-500 hover:scale-110"
+            sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 280px"
+          />
+          
+          {movie.progress !== undefined && movie.progress > 0 && (
+            <div className="absolute bottom-0 left-0 right-0 h-1.5 bg-gray-700 rounded-b-xl">
+              <div 
+                className="h-full bg-red-500 rounded-b-xl transition-all duration-300" 
+                style={{ width: `${movie.progress * 100}%` }}
+              />
             </div>
-            <div className="movie-card__meta-hover">
-              <div className="movie-card__rating">
-                <Star size={14} />
-                <span>{typeof movie.rating === 'number' ? movie.rating.toFixed(1) : movie.rating}</span>
+          )}
+
+          {movie.isWishlisted && (
+            <div className="absolute top-3 right-3 w-8 h-8 bg-black/70 backdrop-blur-sm rounded-full flex items-center justify-center">
+              <Heart className="w-4 h-4 fill-red-500 text-red-500" />
+            </div>
+          )}
+
+          <div className={`movie-card__overlay ${isHovered ? 'visible' : ''}`}>
+            <div className="absolute inset-0 bg-gradient-to-t from-black/95 via-black/60 to-black/20" />
+            <div className="absolute inset-0 flex flex-col justify-end p-4">
+              <div className="flex items-center gap-2 mb-4">
+                <button 
+                  className="flex-1 flex items-center justify-center gap-2 py-2.5 bg-red-500 text-white font-semibold rounded-lg hover:bg-gray-100 transition-all duration-200 transform hover:scale-105"
+                  onClick={() => onPlay(movie)}
+                >
+                  <Play className="w-4 h-4 fill-current" />
+                  Play
+                </button>
+                <button 
+                  className={`p-2.5 rounded-full border-2 transition-all duration-200 ${
+                    movie.isWishlisted 
+                      ? 'bg-red-500/20 border-red-500 text-red-500' 
+                      : 'bg-white/10 border-white/30 text-white hover:bg-white/20 hover:border-white/50'
+                  }`}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    onToggleWishlist(movie.id);
+                  }}
+                >
+                  <Heart className={`w-4 h-4 ${movie.isWishlisted ? 'fill-current' : ''}`} />
+                </button>
               </div>
-              <span className="movie-card__year">{movie.year}</span>
-              <span className="movie-card__duration">{movie.duration}</span>
+
+              <div className="flex items-center gap-3 text-xs text-gray-300 mb-2">
+                {movie.rating && (
+                  <div className="flex items-center gap-1">
+                    <Star className="w-3 h-3 fill-yellow-400 text-yellow-400" />
+                    <span>{movie.rating.toFixed(1)}</span>
+                  </div>
+                )}
+                {movie.year && <span>{movie.year}</span>}
+                {movie.duration && (
+                  <div className="flex items-center gap-1">
+                    <Clock className="w-3 h-3" />
+                    <span>{movie.duration}</span>
+                  </div>
+                )}
+              </div>
+
+              {movie.genres && movie.genres.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {movie.genres.slice(0, 2).map((genre, index) => (
+                    <span 
+                      key={`${movie.id}-genre-${index}`} 
+                      className="px-2 py-1 bg-white/20 backdrop-blur-sm text-white text-xs rounded-full"
+                    >
+                      {genre}
+                    </span>
+                  ))}
+                </div>
+              )}
             </div>
           </div>
-        )}
-        
-        {/* Wishlist badge */}
-        {movie.isWishlisted && !isHovered && (
-          <div className="movie-card__wishlist-badge">
-            <Heart className="filled" size={16} />
-          </div>
-        )}
+        </div>
       </div>
       
       <div className="movie-card__info">
-        <h3 className="movie-card__title">{movie.title}</h3>
-        <div className="movie-card__meta">
-          {movie.genres && movie.genres.length > 0 && (
-            <span className="movie-card__genre">{movie.genres[0]}</span>
-          )}
-        </div>
+        <h3 className="text-white font-semibold text-sm mb-1 line-clamp-2">
+          {movie.title}
+        </h3>
+        {movie.genres && movie.genres.length > 0 && (
+          <p className="text-gray-500 text-xs">
+            {movie.genres[0]}
+          </p>
+        )}
       </div>
     </div>
   );
 };
 
-// Movies list component
-interface MoviesListProps {
-  movies: Movie[];
-  layout: string;
+// Auto-Scrolling Movies Section Component
+const AutoScrollSection: React.FC<{
+  section: MoviesSection;
   onPlay: (movie: Movie) => void;
   onToggleWishlist: (movieId: number) => void;
-}
+  onSeeAll: (sectionId: string) => void;
+}> = ({ section, onPlay, onToggleWishlist, onSeeAll }) => {
+  const scrollRef = useRef<HTMLDivElement>(null);
+  const [isPaused, setIsPaused] = useState(false);
 
-const MoviesList: React.FC<MoviesListProps> = ({ movies, layout, onPlay, onToggleWishlist }) => {
-  return (
-    <div className={`movies-list movies-list--${layout}`}>
-      {movies.map(movie => (
-        <MovieCard 
-          key={movie.id} 
-          movie={movie} 
-          onPlay={onPlay}
-          onToggleWishlist={onToggleWishlist}
-        />
-      ))}
-    </div>
-  );
-};
+  useEffect(() => {
+    if (!section.autoScroll || isPaused) return;
 
-// Filters component
-const MoviesFilter: React.FC<{
-  genres: string[];
-  selectedGenre: string;
-  onGenreChange: (genre: string) => void;
-  sortOptions: { label: string; value: string; icon?: React.ElementType }[];
-  selectedSort: string;
-  onSortChange: (sortOption: string) => void;
-  onSearch: () => void;
-  searchQuery: string;
-  setSearchQuery: (query: string) => void;
-  layout: string;
-  setLayout: (layout: string) => void;
-  isFilterOpen: boolean;
-  toggleFilter: () => void;
-}> = ({ 
-  genres, 
-  selectedGenre, 
-  onGenreChange,
-  sortOptions,
-  selectedSort,
-  onSortChange,
-  onSearch,
-  searchQuery,
-  setSearchQuery,
-  layout,
-  setLayout,
-  isFilterOpen,
-  toggleFilter
-}) => {
+    const scrollElement = scrollRef.current;
+    if (!scrollElement) return;
+
+    const scrollWidth = scrollElement.scrollWidth;
+    const containerWidth = scrollElement.clientWidth;
+    
+    if (scrollWidth <= containerWidth) return;
+
+    let animationId: number;
+    let currentScroll = 0;
+    const scrollSpeed = 0.5; // pixels per frame
+
+    const animate = () => {
+      currentScroll += scrollSpeed;
+      
+      if (currentScroll >= scrollWidth - containerWidth) {
+        currentScroll = 0;
+      }
+      
+      scrollElement.scrollLeft = currentScroll;
+      animationId = requestAnimationFrame(animate);
+    };
+
+    const timeoutId = setTimeout(() => {
+      animationId = requestAnimationFrame(animate);
+    }, 2000); // Start scrolling after 2 seconds
+
+    return () => {
+      clearTimeout(timeoutId);
+      if (animationId) {
+        cancelAnimationFrame(animationId);
+      }
+    };
+  }, [section.autoScroll, isPaused]);
+
   return (
-    <div className="movies-filter">
-      <div className="movies-filter__main">
-        <div className="movies-filter__search">
-          <Search size={18} className="movies-filter__search-icon" />
-          <input 
-            type="text" 
-            placeholder="Search movies..." 
-            value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && onSearch()}
-          />
-          {searchQuery && (
-            <button 
-              className="movies-filter__search-clear" 
-              onClick={() => {
-                setSearchQuery('');
-                onSearch();
-              }}
-            >
-              <X size={16} />
-            </button>
-          )}
-        </div>
-        
-        <div className="movies-filter__controls">
-          <button 
-            className="movies-filter__layout-btn"
-            onClick={() => setLayout(layout === 'grid' ? 'list' : 'grid')}
-            title={layout === 'grid' ? 'Switch to list view' : 'Switch to grid view'}
-          >
-            {layout === 'grid' ? <List size={20} /> : <Grid size={20} />}
-          </button>
-          
-          <button 
-            className={`movies-filter__filter-btn ${isFilterOpen ? 'active' : ''}`}
-            onClick={toggleFilter}
-          >
-            <Filter size={20} />
-            <span className="movies-filter__filter-text">Filter</span>
-          </button>
+    <div className="movies-section">
+      <div className="flex items-center justify-between mb-6">
+        <h2 className="text-2xl md:text-3xl font-bold text-white bg-gradient-to-r from-white to-gray-300 bg-clip-text text-transparent">
+          {section.title}
+        </h2>
+        <button 
+          className="text-red-400 hover:text-red-300 text-sm font-medium transition-colors hover:underline"
+          onClick={() => onSeeAll(section.id)}
+        >
+          See All →
+        </button>
+      </div>
+
+      <div 
+        className="movies-grid-container"
+        onMouseEnter={() => setIsPaused(true)}
+        onMouseLeave={() => setIsPaused(false)}
+      >
+        <div 
+          ref={scrollRef}
+          className="flex gap-6 overflow-x-auto scrollbar-hide pb-6"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' }}
+        >
+          {section.movies.map((movie) => (
+            <div key={`${section.id}-${movie.id}`} className="flex-shrink-0 w-44 md:w-52">
+              <MovieCard 
+                movie={movie} 
+                onPlay={onPlay}
+                onToggleWishlist={onToggleWishlist}
+              />
+            </div>
+          ))}
         </div>
       </div>
-      
-      {isFilterOpen && (
-        <div className="movies-filter__panel">
-          <div className="movies-filter__section">
-            <h4 className="movies-filter__section-title">Genre</h4>
-            <div className="movies-filter__genre-list">
-              {genres.map(genre => (
-                <button 
-                  key={genre} 
-                  className={`movies-filter__genre-btn ${selectedGenre === genre ? 'active' : ''}`}
-                  onClick={() => onGenreChange(genre)}
-                >
-                  {genre}
-                </button>
-              ))}
-            </div>
-          </div>
-          
-          <div className="movies-filter__section">
-            <h4 className="movies-filter__section-title">Sort By</h4>
-            <div className="movies-filter__sort-list">
-              {sortOptions.map(option => (
-                <button 
-                  key={option.value} 
-                  className={`movies-filter__sort-btn ${selectedSort === option.value ? 'active' : ''}`}
-                  onClick={() => onSortChange(option.value)}
-                >
-                  {option.icon && <option.icon size={16} />}
-                  {option.label}
-                </button>
-              ))}
-            </div>
-          </div>
-        </div>
-      )}
     </div>
   );
 };
 
-// Main Movies Page component
+// See All Component
+const SeeAllModal: React.FC<{
+  isOpen: boolean;
+  onClose: () => void;
+  movies: Movie[];
+  title: string;
+  onPlay: (movie: Movie) => void;
+  onToggleWishlist: (movieId: number) => void;
+}> = ({ isOpen, onClose, movies, title, onPlay, onToggleWishlist }) => {
+  if (!isOpen) return null;
+
+  return (
+    <div className="fixed inset-0 bg-black/90 backdrop-blur-sm z-50 overflow-y-auto">
+      <div className="min-h-screen p-4 md:p-6">
+        <div className="max-w-7xl mx-auto">
+          <div className="flex items-center justify-between mb-8">
+            <h1 className="text-3xl md:text-4xl font-bold text-white">{title}</h1>
+            <button 
+              onClick={onClose}
+              className="p-2 hover:bg-white/10 rounded-full transition-colors"
+            >
+              <svg className="w-6 h-6 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+              </svg>
+            </button>
+          </div>
+          
+          <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 gap-6">
+            {movies.map((movie) => (
+              <MovieCard 
+                key={`seeall-${movie.id}`}
+                movie={movie} 
+                onPlay={onPlay}
+                onToggleWishlist={onToggleWishlist}
+              />
+            ))}
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Main Movies Page Component
 export default function MoviesPage() {
   const router = useRouter();
   const { service, isInitialized } = useMovieService();
-  const [movies, setMovies] = useState<Movie[]>([]);
   const [featuredMovies, setFeaturedMovies] = useState<Movie[]>([]);
+  const [moviesSections, setMoviesSections] = useState<MoviesSection[]>([]);
+  const [allMovies, setAllMovies] = useState<Movie[]>([]);
+  const [filteredSections, setFilteredSections] = useState<MoviesSection[]>([]);
+  const [selectedGenre, setSelectedGenre] = useState<string>('All');
+  const [availableGenres, setAvailableGenres] = useState<string[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(1);
-  const [selectedGenre, setSelectedGenre] = useState('All');
-  const [selectedSort, setSelectedSort] = useState('popularity');
-  const [searchQuery, setSearchQuery] = useState('');
-  const [layout, setLayout] = useState('grid');
-  const [isFilterOpen, setIsFilterOpen] = useState(false);
-  const observerRef = useRef(null);
-  const loadMoreRef = useRef(null);
-  
-  const genres = [
-    'All', 'Action', 'Adventure', 'Animation', 'Comedy', 'Crime', 
-    'Documentary', 'Drama', 'Family', 'Fantasy', 'Horror', 
-    'Mystery', 'Romance', 'Sci-Fi', 'Thriller', 'War'
-  ];
-  
-  const sortOptions = [
-    { label: 'Popularity', value: 'popularity', icon: Star },
-    { label: 'Latest', value: 'latest', icon: Clock },
-    { label: 'Title A-Z', value: 'title_asc' },
-    { label: 'Title Z-A', value: 'title_desc' },
-    { label: 'Rating High-Low', value: 'rating_desc' },
-    { label: 'Rating Low-High', value: 'rating_asc' },
-  ];
-  
-  // Toggle filter panel
-  const toggleFilter = () => {
-    setIsFilterOpen(!isFilterOpen);
-  };
-  
-  // Load featured movies for banner
+  const [seeAllModal, setSeeAllModal] = useState<{
+    isOpen: boolean;
+    movies: Movie[];
+    title: string;
+  }>({ isOpen: false, movies: [], title: '' });
+
+  // Filter movies by genre
+  const filterMoviesByGenre = useCallback((movies: Movie[], genre: string) => {
+    if (genre === 'All') return movies;
+    return movies.filter(movie => 
+      movie.genres?.some(g => g.toLowerCase().includes(genre.toLowerCase()))
+    );
+  }, []);
+
+  // Update sections when genre filter changes
   useEffect(() => {
-    async function loadFeaturedMovies() {
+    if (moviesSections.length === 0) return;
+
+    const filtered = moviesSections.map(section => ({
+      ...section,
+      movies: filterMoviesByGenre(section.movies, selectedGenre)
+    })).filter(section => section.movies.length > 0);
+
+    setFilteredSections(filtered);
+  }, [moviesSections, selectedGenre, filterMoviesByGenre]);
+
+  // Load all data
+  useEffect(() => {
+    async function loadData() {
       if (!isInitialized) return;
       
+      setIsLoading(true);
       try {
-        const featured = await service.getFeaturedMovies();
-        setFeaturedMovies(featured);
-      } catch (error) {
-        console.error('Error loading featured movies:', error);
-      }
-    }
-    
-    loadFeaturedMovies();
-  }, [isInitialized, service]);
-  
-  // Load movies based on filters
-  const loadMovies = useCallback(async (resetPage = false) => {
-    if (!isInitialized) return;
-    
-    const newPage = resetPage ? 1 : page;
-    
-    setIsLoading(true);
-    try {
-      let moviesData = [];
-      
-      // Handle search query
-      if (searchQuery) {
-        moviesData = await service.searchMovies(searchQuery);
-        setHasMore(false); // No pagination for search results
-      } 
-      // Handle normal movie fetching with filters
-      else {
-        const options: {
-          offset: number;
-          limit: number;
-          genre?: string;
-          sortBy?: string;
-          ascending?: boolean;
-        } = {
-          offset: (newPage - 1) * 24,
-          limit: 24,
-          genre: selectedGenre !== 'All' ? selectedGenre : undefined,
-        };
-        
-        // Add sorting options
-        switch (selectedSort) {
-          case 'latest':
-            options.sortBy = '$createdAt';
-            options.ascending = false;
-            break;
-          case 'title_asc':
-            options.sortBy = 'title';
-            options.ascending = true;
-            break;
-          case 'title_desc':
-            options.sortBy = 'title';
-            options.ascending = false;
-            break;
-          case 'rating_desc':
-            options.sortBy = 'rating';
-            options.ascending = false;
-            break;
-          case 'rating_asc':
-            options.sortBy = 'rating';
-            options.ascending = true;
-            break;
-          default: // popularity
-            options.ascending = false;
+        // Get all movies
+        const movies = await service.getAllMovies({ limit: 1000 }); // Get all movies
+        setAllMovies(movies);
+
+        // Extract unique genres
+        const genresSet = new Set<string>();
+        movies.forEach(movie => {
+          movie.genres?.forEach(genre => genresSet.add(genre));
+        });
+        const genres = ['All', ...Array.from(genresSet).sort()];
+        setAvailableGenres(genres);
+
+        // Get featured movies for banner
+        const featured = movies.filter(movie => movie.isFeatured);
+        if (featured.length > 0) {
+          setFeaturedMovies(featured);
+        } else {
+          // Fallback to random high-rated movies if no featured movies
+          const highRated = movies
+            .filter(movie => movie.rating && movie.rating >= 7.5)
+            .sort(() => 0.5 - Math.random())
+            .slice(0, 5);
+          setFeaturedMovies(highRated.length > 0 ? highRated : movies.slice(0, 5));
         }
-        
-        moviesData = await service.getAllMovies(options);
-        
-        // Check if we have more movies to load
-        setHasMore(moviesData.length === options.limit);
+
+        // Create movie sections
+        const sections: MoviesSection[] = [
+          {
+            id: 'all_movies',
+            title: 'All Movies',
+            movies: movies,
+            autoScroll: true
+          },
+          {
+            id: 'recently_added',
+            title: 'Recently Added',
+            movies: movies
+              .sort((a, b) => (b.$createdAt || 0) - (a.$createdAt || 0))
+              .slice(0, 20),
+            autoScroll: false
+          },
+          {
+            id: 'top_rated',
+            title: 'Top Rated',
+            movies: movies
+              .filter(movie => movie.rating)
+              .sort((a, b) => (b.rating || 0) - (a.rating || 0))
+              .slice(0, 20),
+            autoScroll: false
+          },
+          {
+            id: 'action_movies',
+            title: 'Action & Adventure',
+            movies: movies.filter(movie => 
+              movie.genres?.some(genre => 
+                ['Action', 'Adventure', 'Thriller'].includes(genre)
+              )
+            ).slice(0, 20),
+            autoScroll: true
+          },
+          {
+            id: 'drama_movies', 
+            title: 'Drama & Romance',
+            movies: movies.filter(movie => 
+              movie.genres?.some(genre => 
+                ['Drama', 'Romance'].includes(genre)
+              )
+            ).slice(0, 20),
+            autoScroll: false
+          },
+          {
+            id: 'comedy_movies',
+            title: 'Comedy & Family',
+            movies: movies.filter(movie => 
+              movie.genres?.some(genre => 
+                ['Comedy', 'Family', 'Animation'].includes(genre)
+              )
+            ).slice(0, 20),
+            autoScroll: true
+          },
+          {
+            id: 'sci_fi_movies',
+            title: 'Sci-Fi & Fantasy',
+            movies: movies.filter(movie => 
+              movie.genres?.some(genre => 
+                ['Science Fiction', 'Fantasy', 'Horror'].includes(genre)
+              )
+            ).slice(0, 20),
+            autoScroll: false
+          }
+        ];
+
+        // Filter out empty sections
+        const validSections = sections.filter(section => section.movies.length > 0);
+        setMoviesSections(validSections);
+
+      } catch (error) {
+        console.error('Error loading movies:', error);
+      } finally {
+        setIsLoading(false);
       }
-      
-      if (resetPage) {
-        setMovies(moviesData);
-        setPage(1);
-      } else {
-        setMovies(prev => [...prev, ...moviesData]);
-        setPage(newPage + 1);
-      }
-    } catch (error) {
-      console.error('Error loading movies:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [isInitialized, service, page, selectedGenre, selectedSort, searchQuery]);
-  
-  // Initial load
-  useEffect(() => {
-    loadMovies(true);
-  }, [isInitialized, selectedGenre, selectedSort]);
-  
-  // Setup infinite scrolling
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-    
-    observerRef.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !isLoading && hasMore) {
-        loadMovies(false);
-      }
-    }, { threshold: 0.5 });
-    
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
-    }
-    
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [loadMovies, isLoading, hasMore]);
-  
-  // Handle search
-  const handleSearch = (query = searchQuery) => {
-    setSearchQuery(query);
-    loadMovies(true);
-  };
-  
-  // Handle genre change
-  const handleGenreChange = (genre) => {
-    setSelectedGenre(genre);
-    // Will trigger the useEffect to reload movies
-  };
-  
-  // Handle sort change
-  const handleSortChange = (sortOption) => {
-    setSelectedSort(sortOption);
-    // Will trigger the useEffect to reload movies
-  };
-  
-  // Handle play movie
-  const handlePlayMovie = (movie) => {
-    // Validate that the movie has video sources
-    if (!movie.videoUrl && !movie.videoUrls?.original && !movie.videoUrls?.hls) {
-      console.warn('No video source available for movie:', movie.title);
-      // Could show a toast notification here
-      return;
     }
 
-    // Navigate to the play page with the movie ID
+    loadData();
+  }, [isInitialized]);
+
+  const handlePlayMovie = (movie: Movie) => {
     router.push(`/play?id=${movie.id}`);
   };
   
-  // Handle toggle wishlist
-  const handleToggleWishlist = async (movieId) => {
+  const handleSeeAll = (sectionId: string) => {
+    const sections = filteredSections.length > 0 ? filteredSections : moviesSections;
+    const section = sections.find(s => s.id === sectionId);
+    if (section) {
+      setSeeAllModal({
+        isOpen: true,
+        movies: section.movies,
+        title: `${section.title}${selectedGenre !== 'All' ? ` - ${selectedGenre}` : ''}`
+      });
+    }
+  };
+
+  // Update wishlist for filtered sections as well
+  const handleToggleWishlist = async (movieId: number) => {
     try {
       await service.toggleWishlist(movieId);
       
-      // Update the movie list to reflect the change
-      setMovies(currentMovies => 
-        currentMovies.map(movie => 
-          movie.id === movieId 
-            ? { ...movie, isWishlisted: !movie.isWishlisted } 
-            : movie
-        )
-      );
+      // Update all movie arrays
+      setFeaturedMovies(prev => prev.map(m => m.id === movieId ? { ...m, isWishlisted: !m.isWishlisted } : m));
+      setAllMovies(prev => prev.map(m => m.id === movieId ? { ...m, isWishlisted: !m.isWishlisted } : m));
+      setMoviesSections(prev => prev.map(section => ({
+        ...section,
+        movies: section.movies.map(m => m.id === movieId ? { ...m, isWishlisted: !m.isWishlisted } : m)
+      })));
+      setFilteredSections(prev => prev.map(section => ({
+        ...section,
+        movies: section.movies.map(m => m.id === movieId ? { ...m, isWishlisted: !m.isWishlisted } : m)
+      })));
     } catch (error) {
       console.error('Error toggling wishlist:', error);
     }
   };
-  
+
+  if (isLoading) {
+    return (
+      <LayoutController>
+        <div className="min-h-screen bg-black flex items-center justify-center">
+          <div className="text-center">
+            <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-500 mx-auto mb-4"></div>
+            <p className="text-white text-lg">Loading movies...</p>
+          </div>
+        </div>
+      </LayoutController>
+    );
+  }
+
+  const totalMovieCount = (filteredSections.length > 0 ? filteredSections : moviesSections)
+    .reduce((total, section) => total + section.movies.length, 0);
+
   return (
     <LayoutController>
-      <div className="movies-page">
-        {/* Featured Banner */}
-        <div className="movies-page__banner">
-          <AnimatedMovieBanner 
+      <div className="min-h-screen bg-black text-white">
+        {/* Hero Banner */}
+        <div className="mb-12">
+          <MovieHeroBanner 
             movies={featuredMovies}
-            autoPlayInterval={8000}
-            showControls={true}
-            isLoading={isLoading && featuredMovies.length === 0}
+            onPlay={handlePlayMovie}
+            onToggleWishlist={handleToggleWishlist}
           />
         </div>
-        
-        {/* Content area */}
-        <div className="movies-page__content">
-          <h1 className="movies-page__title">Movies</h1>
-          
-          {/* Filters */}
-          <MoviesFilter 
-            genres={genres}
-            selectedGenre={selectedGenre}
-            onGenreChange={handleGenreChange}
-            sortOptions={sortOptions}
-            selectedSort={selectedSort}
-            onSortChange={handleSortChange}
-            onSearch={handleSearch}
-            searchQuery={searchQuery}
-            setSearchQuery={setSearchQuery}
-            layout={layout}
-            setLayout={setLayout}
-            isFilterOpen={isFilterOpen}
-            toggleFilter={toggleFilter}
-          />
-          
-          {/* Loading state */}
-          {isLoading && movies.length === 0 && (
-            <div className="movies-page__loading">
-              <div className="movies-page__loading-spinner"></div>
-              <p>Loading movies...</p>
-            </div>
-          )}
-          
-          {/* Empty state */}
-          {!isLoading && movies.length === 0 && (
-            <div className="movies-page__empty">
-              <div className="movies-page__empty-icon">
-                <FilmIcon size={48} />
-              </div>
-              <h2>No movies found</h2>
-              <p>
-                {searchQuery 
-                  ? `No results for "${searchQuery}". Try a different search term.` 
-                  : `No movies available in the ${selectedGenre} genre.`}
-              </p>
-              {searchQuery && (
-                <button 
-                  className="movies-page__empty-btn"
-                  onClick={() => {
-                    setSearchQuery('');
-                    handleSearch('');
-                  }}
-                >
-                  Clear search
-                </button>
-              )}
-            </div>
-          )}
-          
-          {/* Movies list */}
-          {movies.length > 0 && (
-            <MoviesList 
-              movies={movies}
-              layout={layout}
+
+        {/* Responsive Genre Filter */}
+        <ResponsiveGenreSelector
+          genres={availableGenres}
+          selectedGenre={selectedGenre}
+          onGenreSelect={setSelectedGenre}
+          movieCount={totalMovieCount}
+        />
+
+        {/* Movies Sections */}
+        <div className="px-4 md:px-6 lg:px-8 space-y-16">
+          {(filteredSections.length > 0 ? filteredSections : moviesSections).map((section, index) => (
+            <AutoScrollSection
+              key={`${section.id}-${selectedGenre}`}
+              section={section}
               onPlay={handlePlayMovie}
               onToggleWishlist={handleToggleWishlist}
+              onSeeAll={handleSeeAll}
             />
-          )}
+          ))}
           
-          {/* Infinite scroll loading indicator */}
-          {hasMore && (
-            <div ref={loadMoreRef} className="movies-page__load-more">
-              {isLoading ? (
-                <div className="movies-page__loading-spinner"></div>
-              ) : (
-                <div className="movies-page__scroll-indicator">
-                  <ChevronDown className="movies-page__scroll-icon" />
-                  <span>Scroll for more</span>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* End of content message */}
-          {!hasMore && movies.length > 0 && (
-            <div className="movies-page__end">
-              <div className="movies-page__end-divider"></div>
-              <span>You've reached the end</span>
-              <div className="movies-page__end-divider"></div>
+          {selectedGenre !== 'All' && filteredSections.length === 0 && (
+            <div className="flex flex-col items-center justify-center py-20 text-center">
+              <FilmIcon className="w-20 h-20 text-gray-600 mb-6" />
+              <h2 className="text-2xl font-bold text-white mb-4">No movies found</h2>
+              <p className="text-gray-400 mb-8">
+                No movies available in the "{selectedGenre}" genre.
+              </p>
+              <button 
+                className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors"
+                onClick={() => setSelectedGenre('All')}
+              >
+                View All Movies
+              </button>
             </div>
           )}
         </div>
+
+        {/* See All Modal */}
+        <SeeAllModal
+          isOpen={seeAllModal.isOpen}
+          onClose={() => setSeeAllModal({ isOpen: false, movies: [], title: '' })}
+          movies={seeAllModal.movies}
+          title={seeAllModal.title}
+          onPlay={handlePlayMovie}
+          onToggleWishlist={handleToggleWishlist}
+        />
       </div>
     </LayoutController>
   );
