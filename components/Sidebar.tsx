@@ -37,7 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
   };
 
   const navItems = [
-    { path: '/', name: 'Home', icon: <Home /> },
+    { path: '/dashboard', name: 'Home', icon: <Home /> },
     { path: '/movies', name: 'Movies', icon: <Film /> },
     { path: '/discover', name: 'Discover', icon: <Compass /> },
     { path: '/trending', name: 'Trending', icon: <TrendingUp /> },
