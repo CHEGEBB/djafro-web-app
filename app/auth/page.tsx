@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { appwriteHelpers } from '@/lib/appwrite';
+import { authService } from '@/services/auth_service'; // Updated import
 import { 
   Film, 
   Eye, 
@@ -26,6 +26,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [sessionLoading, setSessionLoading] = useState(true); // Add session loading state
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | React.ReactNode | null>(null);
@@ -44,6 +45,44 @@ export default function AuthPage() {
     '/assets/images/image3.jpg',
     '/assets/images/image4.jpg',
   ];
+
+  // Check for existing session on mount - FIXED LOGIC
+  useEffect(() => {
+    const checkExistingSession = async () => {
+      try {
+        const user = await authService.getCurrentUser();
+        if (user) {
+          console.log('Existing user found:', user.$id);
+          // User has active session, get their preferences
+          const preferences = await authService.getUserPreferences(user.$id);
+          const isOnboarded = preferences?.isOnboarded || false;
+          
+          console.log('User onboarding status:', isOnboarded);
+          
+          // CRITICAL: If user exists and has been onboarded, go to dashboard
+          // If user exists but hasn't been onboarded, go to onboarding
+          if (isOnboarded) {
+            console.log('User already onboarded, redirecting to dashboard');
+            router.push('/dashboard');
+          } else {
+            console.log('User exists but not onboarded, redirecting to onboarding');
+            router.push('/onboarding');
+          }
+          return; // Exit early, don't show auth page
+        }
+        
+        // No existing session, show auth page
+        console.log('No existing session found, showing auth page');
+      } catch (error) {
+        // If error checking session, just stay on auth page
+        console.error('Error checking existing session:', error);
+      } finally {
+        setSessionLoading(false); // Always stop session loading
+      }
+    };
+
+    checkExistingSession();
+  }, [router]);
 
   // Rotate background images
   useEffect(() => {
@@ -68,13 +107,13 @@ export default function AuthPage() {
 
   // Focus first input on mount and clear messages when switching forms
   useEffect(() => {
-    if (emailRef.current) {
+    if (emailRef.current && !sessionLoading) {
       emailRef.current.focus();
     }
     setError(null);
     setSuccess(null);
     setWarning(null);
-  }, [isLogin]);
+  }, [isLogin, sessionLoading]);
 
   // Clear messages after timeout
   useEffect(() => {
@@ -98,18 +137,7 @@ export default function AuthPage() {
     }
   }, [warning]);
 
-  // Auto-handle existing session (silent for users)
-  const handleExistingSessionAuto = async () => {
-    try {
-      await appwriteHelpers.deleteSession();
-      return true;
-    } catch (err) {
-      console.error('Error clearing session:', err);
-      return false;
-    }
-  };
-
-  // Handle form submission with auto session handling
+  // Handle form submission with FIXED auth logic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -141,16 +169,28 @@ export default function AuthPage() {
     
     try {
       if (isLogin) {
-        // Login
-        await appwriteHelpers.createSession(email, password);
+        // LOGIN: Existing user returning
+        console.log('Attempting login for existing user');
+        const { user, isOnboarded } = await authService.login(email, password);
+        
+        console.log('Login successful, user:', user.$id, 'onboarded:', isOnboarded);
         setSuccess('Welcome back! Redirecting...');
         
-        // Redirect after successful login
+        // CRITICAL: Existing users should NEVER see onboarding again
+        // Only go to onboarding if they somehow weren't onboarded (edge case)
         setTimeout(() => {
-          router.push('/dashboard');
+          if (isOnboarded) {
+            console.log('Returning user going to dashboard');
+            router.push('/dashboard');
+          } else {
+            console.log('Edge case: existing user not onboarded, going to onboarding');
+            router.push('/onboarding');
+          }
         }, 2000);
+        
       } else {
-        // Signup
+        // SIGNUP: Brand new user
+        console.log('Attempting signup for new user');
         const name = nameRef.current?.value.trim() || '';
         if (!name) {
           setError('Please enter your full name');
@@ -164,54 +204,22 @@ export default function AuthPage() {
           return;
         }
         
-        await appwriteHelpers.createAccount(email, password, name);
-        setSuccess('Account created! You can now sign in.');
+        const { user, isOnboarded } = await authService.register(email, password, name);
         
-        // Switch to login form after successful signup
+        console.log('Signup successful, new user:', user.$id, 'onboarded:', isOnboarded);
+        setSuccess('Account created! Redirecting to onboarding...');
+        
+        // NEW USERS: Always go to onboarding (isOnboarded should be false)
         setTimeout(() => {
-          setIsLogin(true);
-          // Clear form fields
-          if (emailRef.current) emailRef.current.value = '';
-          if (passwordRef.current) passwordRef.current.value = '';
+          console.log('New user going to onboarding');
+          router.push('/onboarding');
         }, 2000);
       }
     } catch (err: any) {
       console.error('Auth error:', err);
       
-      // Handle existing session automatically
-      if (err.message.includes('session') && err.message.includes('active')) {
-        setWarning('Signing you in...');
-        const sessionCleared = await handleExistingSessionAuto();
-        
-        if (sessionCleared) {
-          // Retry the original operation
-          try {
-            if (isLogin) {
-              await appwriteHelpers.createSession(email, password);
-              setSuccess('Welcome back! Redirecting...');
-              setTimeout(() => {
-                router.push('/dashboard');
-              }, 2000);
-            } else {
-              const name = nameRef.current?.value.trim() || '';
-              await appwriteHelpers.createAccount(email, password, name);
-              setSuccess('Account created! You can now sign in.');
-              setTimeout(() => {
-                setIsLogin(true);
-                if (emailRef.current) emailRef.current.value = '';
-                if (passwordRef.current) passwordRef.current.value = '';
-              }, 2000);
-            }
-            setWarning(null);
-          } catch (retryErr: any) {
-            setWarning(null);
-            setError('Please check your credentials and try again.');
-          }
-        } else {
-          setWarning(null);
-          setError('Please refresh the page and try again.');
-        }
-      } else if (err.message.includes('Invalid credentials')) {
+      // Handle specific auth service errors
+      if (err.message.includes('Invalid credentials')) {
         setError('Invalid email or password.');
       } else if (err.message.includes('user with the same id, email')) {
         setError('Account already exists. Try signing in instead.');
@@ -255,6 +263,24 @@ export default function AuthPage() {
       </div>
     );
   };
+
+  // Show loading screen while checking session
+  if (sessionLoading) {
+    return (
+      <div className="fixed inset-0 bg-black flex items-center justify-center">
+        <div className="text-center">
+          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mb-4 mx-auto">
+            <Film className="text-white animate-pulse" size={32} />
+          </div>
+          <h2 className="text-white text-xl font-semibold mb-2">DJ Afro Movies</h2>
+          <div className="flex items-center justify-center space-x-2">
+            <Loader2 className="h-5 w-5 animate-spin text-red-400" />
+            <span className="text-gray-400">Checking session...</span>
+          </div>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="auth-container flex flex-col md:flex-row">

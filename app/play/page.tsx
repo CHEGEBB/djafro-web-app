@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/play/page.tsx
 'use client';
 
@@ -16,6 +15,7 @@ export default function PlayPage() {
   const videoRef = useRef<HTMLVideoElement>(null);
   const iframeRef = useRef<HTMLIFrameElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
+  const progressBarRef = useRef<HTMLDivElement>(null);
   
   const [movie, setMovie] = useState<Movie | null>(null);
   const [loading, setLoading] = useState(true);
@@ -35,6 +35,11 @@ export default function PlayPage() {
   
   // Track player ready state
   const [playerReady, setPlayerReady] = useState(false);
+  
+  // Seeking state management
+  const [isSeeking, setIsSeeking] = useState(false);
+  const [seekProgress, setSeekProgress] = useState(0);
+  const [wasPlayingBeforeSeek, setWasPlayingBeforeSeek] = useState(false);
   
   // Fetch movie data
   useEffect(() => {
@@ -175,17 +180,17 @@ export default function PlayPage() {
     if (!movie || !isInitialized || progress <= 0) return;
     
     const updateInterval = setInterval(() => {
-      if (progress > 0 && progress < 0.99) {
+      if (progress > 0 && progress < 0.99 && !isSeeking) {
         service.updateWatchingProgress(movie.id, progress);
       }
     }, 10000); // Update every 10 seconds
     
     return () => clearInterval(updateInterval);
-  }, [movie, progress, service, isInitialized]);
+  }, [movie, progress, service, isInitialized, isSeeking]);
 
   // Handle video events for HTML5 player
   const handleTimeUpdate = useCallback(() => {
-    if (!videoRef.current) return;
+    if (!videoRef.current || isSeeking) return;
     
     const video = videoRef.current;
     setCurrentTime(video.currentTime);
@@ -201,7 +206,7 @@ export default function PlayPage() {
       const bufferedEnd = video.buffered.end(video.buffered.length - 1);
       setBuffered(bufferedEnd / video.duration);
     }
-  }, []);
+  }, [isSeeking]);
   
   const handleDurationChange = useCallback(() => {
     if (!videoRef.current) return;
@@ -210,6 +215,7 @@ export default function PlayPage() {
   
   const handlePlay = useCallback(() => {
     setIsPlaying(true);
+    setIsBuffering(false);
   }, []);
   
   const handlePause = useCallback(() => {
@@ -238,13 +244,32 @@ export default function PlayPage() {
     setIsBuffering(false);
   }, []);
   
+  const handleSeeked = useCallback(() => {
+    setIsBuffering(false);
+    setIsSeeking(false);
+    
+    // Resume playing if it was playing before seek
+    if (wasPlayingBeforeSeek && videoRef.current) {
+      videoRef.current.play().catch(err => {
+        console.error("Resume play after seek failed:", err);
+      });
+    }
+  }, [wasPlayingBeforeSeek]);
+  
+  const handleSeeking = useCallback(() => {
+    setIsBuffering(true);
+  }, []);
+  
   const handleCanPlay = useCallback(() => {
     setIsBuffering(false);
     setPlayerReady(true);
     
     // If there's saved progress, seek to it
     if (videoRef.current && progress > 0 && progress < 0.95) {
-      videoRef.current.currentTime = progress * videoRef.current.duration;
+      const seekTime = progress * videoRef.current.duration;
+      if (!isNaN(seekTime) && seekTime > 0) {
+        videoRef.current.currentTime = seekTime;
+      }
     }
     
     // Autoplay
@@ -291,23 +316,93 @@ export default function PlayPage() {
     }
   }, [isMuted]);
   
-  const handleSeek = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+  // Improved direct seeking on progress bar click
+  const handleProgressBarClick = useCallback((e: React.MouseEvent<HTMLDivElement>) => {
+    if (!videoRef.current || !progressBarRef.current || !duration) return;
+    
+    // Save current playing state
+    const wasPlaying = isPlaying;
+    if (wasPlaying) {
+      videoRef.current.pause();
+    }
+    
+    // Calculate new position
+    const rect = progressBarRef.current.getBoundingClientRect();
+    const clickPosition = (e.clientX - rect.left) / rect.width;
+    const seekTime = clickPosition * duration;
+    
+    // Set states
+    setIsSeeking(true);
+    setProgress(clickPosition);
+    setSeekProgress(clickPosition);
+    setWasPlayingBeforeSeek(wasPlaying);
+    
+    // Update video time
+    videoRef.current.currentTime = seekTime;
+    
+    // Add a short delay before resuming playback to allow buffering
+    setTimeout(() => {
+      setIsSeeking(false);
+      if (wasPlaying) {
+        videoRef.current?.play().catch(err => {
+          console.error("Resume play after seek failed:", err);
+        });
+      }
+    }, 300);
+  }, [duration, isPlaying]);
+  
+  // Optimized seeking handlers with better buffering
+  const handleSeekStart = useCallback(() => {
+    if (!videoRef.current) return;
+    
+    setIsSeeking(true);
+    setWasPlayingBeforeSeek(isPlaying);
+    
+    // Pause while seeking to prevent stuttering
+    if (isPlaying) {
+      videoRef.current.pause();
+    }
+  }, [isPlaying]);
+  
+  const handleSeekChange = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const newProgress = parseFloat(e.target.value);
+    setSeekProgress(newProgress);
+  }, []);
+  
+  const handleSeekEnd = useCallback(() => {
     if (!videoRef.current || !duration) return;
     
-    const seekTime = parseFloat(e.target.value) * duration;
+    // Update video time directly
+    const seekTime = seekProgress * duration;
     videoRef.current.currentTime = seekTime;
-  }, [duration]);
+    
+    // Update states
+    setProgress(seekProgress);
+    setCurrentTime(seekTime);
+    
+    // Add a delay before resuming playback to allow sufficient buffering
+    setTimeout(() => {
+      setIsSeeking(false);
+      if (wasPlayingBeforeSeek) {
+        videoRef.current?.play().catch(err => {
+          console.error("Resume play after seek failed:", err);
+        });
+      }
+    }, 500);
+  }, [seekProgress, duration, wasPlayingBeforeSeek]);
   
   const handleForward = useCallback(() => {
     if (!videoRef.current) return;
     
-    videoRef.current.currentTime = Math.min(videoRef.current.currentTime + 10, videoRef.current.duration);
+    const newTime = Math.min(videoRef.current.currentTime + 10, videoRef.current.duration);
+    videoRef.current.currentTime = newTime;
   }, []);
   
   const handleBackward = useCallback(() => {
     if (!videoRef.current) return;
     
-    videoRef.current.currentTime = Math.max(videoRef.current.currentTime - 10, 0);
+    const newTime = Math.max(videoRef.current.currentTime - 10, 0);
+    videoRef.current.currentTime = newTime;
   }, []);
   
   // Enhanced fullscreen handling for both HTML5 and iframe players
@@ -370,7 +465,7 @@ export default function PlayPage() {
       }
       
       const timeout = setTimeout(() => {
-        if (isPlaying && !isBuffering) {
+        if (isPlaying && !isBuffering && !isSeeking) {
           setShowControls(false);
         }
       }, 3000);
@@ -386,7 +481,7 @@ export default function PlayPage() {
         clearTimeout(controlsTimeout);
       }
     };
-  }, [isPlaying, isBuffering, controlsTimeout]);
+  }, [isPlaying, isBuffering, controlsTimeout, isSeeking]);
   
   // Back button handler
   const handleBack = useCallback(() => {
@@ -516,6 +611,7 @@ export default function PlayPage() {
             className="w-full h-full object-contain"
             autoPlay
             playsInline
+            preload="auto" 
             onTimeUpdate={handleTimeUpdate}
             onDurationChange={handleDurationChange}
             onPlay={handlePlay}
@@ -525,6 +621,8 @@ export default function PlayPage() {
             onVolumeChange={handleVolumeChange}
             onWaiting={handleBuffer}
             onCanPlay={handleCanPlay}
+            onSeeking={handleSeeking}
+            onSeeked={handleSeeked}
             onError={handleError}
           />
         )}
@@ -540,6 +638,15 @@ export default function PlayPage() {
             title={movie.title}
             onLoad={() => setPlayerReady(true)}
             onError={handleError}
+          />
+        )}
+        
+        {/* Video area click handler - toggles play/pause */}
+        {playerType === 'html5' && (
+          <div 
+            className="absolute inset-0 z-10 cursor-pointer"
+            onClick={togglePlay}
+            onDoubleClick={toggleFullscreen}
           />
         )}
         
@@ -572,28 +679,51 @@ export default function PlayPage() {
               </div>
             </div>
             
-            {/* Center play/pause button for mobile */}
+            {/* Center controls - much larger now */}
             <div className="flex-grow flex items-center justify-center">
-              {!playerReady ? (
-                <Loader className="w-16 h-16 animate-spin text-red-600" />
-              ) : (
+              <div className="flex items-center space-x-8">
+                {/* Skip backward */}
                 <button 
-                  onClick={togglePlay}
-                  className="bg-red-600 hover:bg-red-700 rounded-full p-4 transition-colors md:hidden"
+                  onClick={handleBackward}
+                  className="bg-black/50 hover:bg-red-600 rounded-full p-3 transition-colors"
                 >
-                  {isPlaying ? (
-                    <Pause size={32} className="text-white" />
-                  ) : (
-                    <Play size={32} className="text-white" />
-                  )}
+                  <SkipBack size={30} className="text-white" />
                 </button>
-              )}
+                
+                {/* Play/Pause (larger) */}
+                {!playerReady ? (
+                  <Loader className="w-20 h-20 animate-spin text-red-600" />
+                ) : (
+                  <button 
+                    onClick={togglePlay}
+                    className="bg-red-600 hover:bg-red-700 rounded-full p-5 transition-colors"
+                  >
+                    {isPlaying ? (
+                      <Pause size={40} className="text-white" />
+                    ) : (
+                      <Play size={40} className="text-white" />
+                    )}
+                  </button>
+                )}
+                
+                {/* Skip forward */}
+                <button 
+                  onClick={handleForward}
+                  className="bg-black/50 hover:bg-red-600 rounded-full p-3 transition-colors"
+                >
+                  <SkipForward size={30} className="text-white" />
+                </button>
+              </div>
             </div>
             
             {/* Bottom controls */}
-            <div className="space-y-2">
+            <div className="space-y-3">
               {/* Progress bar */}
-              <div className="relative w-full h-2 bg-gray-700 rounded cursor-pointer group">
+              <div 
+                ref={progressBarRef}
+                className="relative w-full h-3 bg-gray-700 rounded cursor-pointer group"
+                onClick={handleProgressBarClick}
+              >
                 {/* Buffered progress */}
                 <div 
                   className="absolute h-full bg-gray-500 rounded-l"
@@ -603,23 +733,30 @@ export default function PlayPage() {
                 {/* Playback progress */}
                 <div 
                   className="absolute h-full bg-red-600 rounded-l"
-                  style={{ width: `${progress * 100}%` }}
+                  style={{ width: `${(isSeeking ? seekProgress : progress) * 100}%` }}
                 ></div>
                 
                 {/* Seek thumb */}
                 <div 
-                  className="absolute h-4 w-4 bg-red-600 rounded-full -mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
-                  style={{ left: `calc(${progress * 100}% - 8px)`, top: '0px' }}
+                  className="absolute h-5 w-5 bg-red-600 rounded-full -mt-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                  style={{ 
+                    left: `calc(${(isSeeking ? seekProgress : progress) * 100}% - 10px)`, 
+                    top: '0px' 
+                  }}
                 ></div>
                 
-                {/* Invisible range input for seeking */}
+                {/* Seekbar input - invisible but handles interactions */}
                 <input 
                   type="range"
                   min={0}
                   max={1}
                   step="any"
-                  value={progress}
-                  onChange={handleSeek}
+                  value={isSeeking ? seekProgress : progress}
+                  onChange={handleSeekChange}
+                  onMouseDown={handleSeekStart}
+                  onMouseUp={handleSeekEnd}
+                  onTouchStart={handleSeekStart}
+                  onTouchEnd={handleSeekEnd}
                   className="absolute inset-0 w-full h-full opacity-0 cursor-pointer"
                 />
               </div>
@@ -627,10 +764,10 @@ export default function PlayPage() {
               {/* Controls row */}
               <div className="flex items-center justify-between">
                 <div className="flex items-center space-x-4">
-                  {/* Play/Pause */}
+                  {/* Play/Pause button (smaller for bottom control bar) */}
                   <button 
                     onClick={togglePlay}
-                    className="text-white hover:text-red-500 transition-colors hidden md:block"
+                    className="text-white hover:text-red-500 transition-colors"
                   >
                     {isPlaying ? (
                       <Pause size={24} />
@@ -639,24 +776,8 @@ export default function PlayPage() {
                     )}
                   </button>
                   
-                  {/* Skip backward */}
-                  <button 
-                    onClick={handleBackward}
-                    className="text-white hover:text-red-500 transition-colors"
-                  >
-                    <SkipBack size={24} />
-                  </button>
-                  
-                  {/* Skip forward */}
-                  <button 
-                    onClick={handleForward}
-                    className="text-white hover:text-red-500 transition-colors"
-                  >
-                    <SkipForward size={24} />
-                  </button>
-                  
                   {/* Volume control */}
-                  <div className="flex items-center space-x-2 hidden md:flex">
+                  <div className="flex items-center space-x-2">
                     <button 
                       onClick={toggleMute}
                       className="text-white hover:text-red-500 transition-colors"
@@ -675,13 +796,13 @@ export default function PlayPage() {
                       step="0.1"
                       value={isMuted ? 0 : volume}
                       onChange={handleVolumeSet}
-                      className="w-20 accent-red-600"
+                      className="w-20 accent-red-600 hidden md:block"
                     />
                   </div>
                   
                   {/* Time display */}
                   <div className="text-white text-sm">
-                    {formatTime(currentTime)} / {formatTime(duration)}
+                    {formatTime(isSeeking ? seekProgress * duration : currentTime)} / {formatTime(duration)}
                   </div>
                 </div>
                 
@@ -734,8 +855,6 @@ export default function PlayPage() {
                 )}
               </button>
             </div>
-            
-
           </div>
         )}
         
