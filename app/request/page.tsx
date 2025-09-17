@@ -288,7 +288,7 @@ export default function RequestsPage() {
             <div className="requests-header__content">
               <h1 className="requests-header__title">Movie Requests</h1>
               <p className="requests-header__description">
-                Can't find a movie you're looking for? Submit a request and our team will try to add it to our collection.
+                Can&apos;t find a movie you&apos;re looking for? Submit a request and our team will try to add it to our collection.
               </p>
             </div>
           </div>
@@ -430,7 +430,7 @@ export default function RequestsPage() {
                 <div className="request-form__header">
                   <h2 className="request-form__title">Request a Movie</h2>
                   <p className="request-form__subtitle">
-                    Fill out the form below to request a movie you'd like to see on our platform
+                    Fill out the form below to request a movie you&apos;d like to see on our platform
                   </p>
                 </div>
 
@@ -668,8 +668,8 @@ export default function RequestsPage() {
                     </div>
                     <h4 className="admin-response__pending-title">Awaiting Response</h4>
                     <p className="admin-response__pending-text">
-                      Our team hasn't responded to your request yet. 
-                      We'll notify you when we have an update.
+                      Our team hasn&apos;t responded to your request yet. 
+                      We&apos;ll notify you when we have an update.
                     </p>
                   </div>
                 )}

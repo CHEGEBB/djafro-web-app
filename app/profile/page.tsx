@@ -92,7 +92,7 @@ const ProfilePage: React.FC = () => {
     phone_number: ''
   });
   const [isLoading, setIsLoading] = useState(true);
-  const intervalRef = useRef<NodeJS.Timeout>();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   // Available profile images
   const profileImages = [
