@@ -1,0 +1,247 @@
+// styles/libraryAnimations.scss
+
+// Variables
+$primary-red: #E50914;
+$primary-dark: #141414;
+$dark-red: #831010;
+$light-red: #FF7777;
+
+// Keyframe animations
+@keyframes gradientShift {
+  0% {
+    background-position: 0% 50%;
+  }
+  50% {
+    background-position: 100% 50%;
+  }
+  100% {
+    background-position: 0% 50%;
+  }
+}
+
+@keyframes pulse {
+  0%, 100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+  50% {
+    opacity: 0.6;
+    transform: scale(0.95);
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes rotate {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes glow {
+  0%, 100% {
+    box-shadow: 0 0 5px 2px rgba($primary-red, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 15px 5px rgba($primary-red, 0.5);
+  }
+}
+
+// Loading animation
+.loader {
+  position: relative;
+  width: 100px;
+  height: 100px;
+  
+  .film-reel {
+    animation: rotate 3s linear infinite;
+  }
+}
+
+// Welcome banner with gradient animation
+.welcome-banner {
+  background: linear-gradient(
+    -45deg,
+    $primary-dark,
+    $dark-red,
+    $primary-red,
+    $primary-dark
+  );
+  background-size: 400% 400%;
+  animation: gradientShift 15s ease infinite;
+}
+
+// Movie card hover effects
+.movie-card {
+  transition: all 0.3s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+  
+  &:hover {
+    transform: translateY(-8px) scale(1.02);
+    box-shadow: 0 10px 20px -5px rgba(0, 0, 0, 0.3);
+    
+    .movie-card__poster img {
+      transform: scale(1.1);
+    }
+    
+    .movie-card__info {
+      transform: translateY(-5px);
+    }
+  }
+  
+  &__progress-bar {
+    position: relative;
+    height: 3px;
+    border-radius: 3px;
+    overflow: hidden;
+    background: rgba(255, 255, 255, 0.2);
+    
+    &::after {
+      content: '';
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: $primary-red;
+      transition: width 0.5s ease-out;
+    }
+  }
+  
+  &__wishlist-indicator {
+    animation: pulse 2s infinite;
+  }
+}
+
+// Filter animations
+.filter-button {
+  transition: all 0.2s ease;
+  
+  &:hover {
+    transform: translateY(-2px);
+  }
+  
+  &.active {
+    background: linear-gradient(to right, $primary-red, $dark-red);
+    animation: glow 2s infinite;
+  }
+}
+
+// Empty state animations
+.empty-state {
+  &__icon {
+    animation: pulse 3s infinite;
+  }
+  
+  &__message {
+    animation: fadeInUp 0.5s ease-out;
+  }
+}
+
+// Stats counter animation
+.stat-counter {
+  position: relative;
+  overflow: hidden;
+  
+  &::after {
+    content: '';
+    position: absolute;
+    bottom: 0;
+    left: 0;
+    width: 100%;
+    height: 2px;
+    background: linear-gradient(to right, $primary-red, transparent);
+    animation: gradientShift 2s infinite linear;
+  }
+}
+
+// Grid item appear animation
+.grid-item-appear {
+  animation: fadeInUp 0.4s ease-out forwards;
+}
+
+// Shimmer loading effect
+.shimmer {
+  background: linear-gradient(
+    90deg,
+    rgba(255, 255, 255, 0.05),
+    rgba(255, 255, 255, 0.1),
+    rgba(255, 255, 255, 0.05)
+  );
+  background-size: 200% 100%;
+  animation: gradientShift 1.5s linear infinite;
+}
+
+// Wishlist heart animation
+.wishlist-heart {
+  &.active {
+    animation: pulse 0.5s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+    
+    &::before {
+      content: '';
+      position: absolute;
+      inset: -5px;
+      border-radius: 50%;
+      background: radial-gradient(circle, rgba($primary-red, 0.5) 0%, rgba($primary-red, 0) 70%);
+      opacity: 0;
+      animation: pulse 0.8s ease-out;
+    }
+  }
+}
+
+// Sort dropdown animation
+.sort-dropdown {
+  transition: all 0.3s ease;
+  
+  &:hover {
+    box-shadow: 0 0 0 2px rgba($primary-red, 0.3);
+  }
+  
+  &.open {
+    animation: glow 2s infinite;
+  }
+}
+
+// Search input animation
+.search-input {
+  transition: all 0.3s ease;
+  
+  &:focus {
+    box-shadow: 0 0 0 2px rgba($primary-red, 0.5);
+  }
+}
+
+// Confirmation modal animation
+.confirmation-modal {
+  animation: fadeInUp 0.3s ease-out;
+  
+  &__backdrop {
+    animation: fadeIn 0.2s ease-out;
+  }
+}
+
+// Responsive transitions
+@media (max-width: 768px) {
+  .movie-grid {
+    transition: grid-template-columns 0.4s ease;
+  }
+  
+  .filter-panel {
+    transition: height 0.3s ease;
+    
+    &.collapsed {
+      height: 60px;
+      overflow: hidden;
+    }
+  }
+}

@@ -2,12 +2,14 @@
 
 import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
-import { usePathname } from 'next/navigation';
+import { usePathname, useRouter } from 'next/navigation';
 import { useTheme } from '@/context/ThemeContext';
+import { authService } from '@/services/auth_service';
+import type { AuthState } from '@/services/auth_service';
 import { 
   Home, Film, Compass, Library, User, 
-  LogOut, Menu, X, Search, Settings,
-  TrendingUp, Heart, Play
+  LogOut, Menu, X, Search, Play,
+  Heart
 } from 'lucide-react';
 import '@/styles/Sidebar.scss';
 
@@ -19,13 +21,23 @@ interface SidebarProps {
 
 const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
   const pathname = usePathname();
+  const router = useRouter();
   const { colors } = useTheme();
   const [mounted, setMounted] = useState(false);
   const [searchActive, setSearchActive] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [authState, setAuthState] = useState<AuthState>(authService.getState());
+  const [isLoggingOut, setIsLoggingOut] = useState(false);
   
   useEffect(() => {
     setMounted(true);
+    
+    // Subscribe to auth state changes
+    const unsubscribe = authService.subscribe(setAuthState);
+    
+    return () => {
+      unsubscribe();
+    };
   }, []);
 
   if (!mounted) {
@@ -36,14 +48,36 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
     return pathname === path;
   };
 
+  const handleLogout = async () => {
+    if (isLoggingOut) return;
+    
+    try {
+      setIsLoggingOut(true);
+      await authService.logout();
+      
+      // Close sidebar if on mobile
+      if (isMobile && isOpen) {
+        onToggle();
+      }
+      
+      // Redirect to auth page
+      router.push('/auth');
+    } catch (error) {
+      console.error('Logout failed:', error);
+    } finally {
+      setIsLoggingOut(false);
+    }
+  };
+
   const navItems = [
     { path: '/dashboard', name: 'Home', icon: <Home /> },
     { path: '/movies', name: 'Movies', icon: <Film /> },
     { path: '/discover', name: 'Discover', icon: <Compass /> },
-    { path: '/trending', name: 'Trending', icon: <TrendingUp /> },
-    { path: '/library', name: 'My List', icon: <Library /> },
+    { path: '/library', name: 'Library', icon: <Library /> },
     { path: '/watchlist', name: 'Watchlist', icon: <Heart /> },
   ];
+
+  const { user } = authState;
 
   return (
     <>
@@ -108,17 +142,21 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
         </div>
         
         <div className="sidebar__footer">
-          <Link href="/profile" className="sidebar__footer-item">
+          <Link 
+            href="/profile" 
+            className="sidebar__footer-item"
+            onClick={isMobile ? onToggle : undefined}
+          >
             <User size={18} />
-            <span>Profile</span>
+            <span>{user?.name || 'Profile'}</span>
           </Link>
-          <Link href="/settings" className="sidebar__footer-item">
-            <Settings size={18} />
-            <span>Settings</span>
-          </Link>
-          <button className="sidebar__logout">
+          <button 
+            className="sidebar__logout"
+            onClick={handleLogout}
+            disabled={isLoggingOut}
+          >
             <LogOut size={18} />
-            <span>Logout</span>
+            <span>{isLoggingOut ? 'Logging out...' : 'Logout'}</span>
           </button>
         </div>
       </div>

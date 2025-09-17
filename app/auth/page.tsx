@@ -4,7 +4,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
-import { authService } from '@/services/auth_service'; // Updated import
+import { authService } from '@/services/auth_service';
 import { 
   Film, 
   Eye, 
@@ -26,7 +26,7 @@ export default function AuthPage() {
   const [isLogin, setIsLogin] = useState(true);
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [sessionLoading, setSessionLoading] = useState(true); // Add session loading state
+  const [initialLoading, setInitialLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const [warning, setWarning] = useState<string | React.ReactNode | null>(null);
@@ -46,42 +46,25 @@ export default function AuthPage() {
     '/assets/images/image4.jpg',
   ];
 
-  // Check for existing session on mount - FIXED LOGIC
+  // SIMPLE: Quick session check - if user exists, go to dashboard
   useEffect(() => {
-    const checkExistingSession = async () => {
+    const quickSessionCheck = async () => {
       try {
         const user = await authService.getCurrentUser();
         if (user) {
-          console.log('Existing user found:', user.$id);
-          // User has active session, get their preferences
-          const preferences = await authService.getUserPreferences(user.$id);
-          const isOnboarded = preferences?.isOnboarded || false;
-          
-          console.log('User onboarding status:', isOnboarded);
-          
-          // CRITICAL: If user exists and has been onboarded, go to dashboard
-          // If user exists but hasn't been onboarded, go to onboarding
-          if (isOnboarded) {
-            console.log('User already onboarded, redirecting to dashboard');
-            router.push('/dashboard');
-          } else {
-            console.log('User exists but not onboarded, redirecting to onboarding');
-            router.push('/onboarding');
-          }
-          return; // Exit early, don't show auth page
+          // User exists = they go to dashboard, simple as that
+          router.replace('/dashboard');
+          return;
         }
-        
-        // No existing session, show auth page
-        console.log('No existing session found, showing auth page');
       } catch (error) {
-        // If error checking session, just stay on auth page
-        console.error('Error checking existing session:', error);
-      } finally {
-        setSessionLoading(false); // Always stop session loading
+        console.log('No existing session, showing auth form');
       }
+      
+      // No session or error -> show auth form
+      setInitialLoading(false);
     };
 
-    checkExistingSession();
+    quickSessionCheck();
   }, [router]);
 
   // Rotate background images
@@ -95,25 +78,15 @@ export default function AuthPage() {
     return () => clearInterval(interval);
   }, [movieImages.length]);
 
-  // Form animation on mount
+  // Focus first input when form is ready
   useEffect(() => {
-    const form = document.querySelector('.auth-form-container');
-    if (form) {
-      setTimeout(() => {
-        form.classList.add('animate-in');
-      }, 100);
-    }
-  }, []);
-
-  // Focus first input on mount and clear messages when switching forms
-  useEffect(() => {
-    if (emailRef.current && !sessionLoading) {
+    if (!initialLoading && emailRef.current) {
       emailRef.current.focus();
     }
     setError(null);
     setSuccess(null);
     setWarning(null);
-  }, [isLogin, sessionLoading]);
+  }, [isLogin, initialLoading]);
 
   // Clear messages after timeout
   useEffect(() => {
@@ -137,7 +110,7 @@ export default function AuthPage() {
     }
   }, [warning]);
 
-  // Handle form submission with FIXED auth logic
+  // FIXED: Handle form submission with proper logic
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
@@ -169,28 +142,18 @@ export default function AuthPage() {
     
     try {
       if (isLogin) {
-        // LOGIN: Existing user returning
-        console.log('Attempting login for existing user');
-        const { user, isOnboarded } = await authService.login(email, password);
+        // LOGIN: Existing user - go to dashboard
+        await authService.login(email, password);
         
-        console.log('Login successful, user:', user.$id, 'onboarded:', isOnboarded);
         setSuccess('Welcome back! Redirecting...');
         
-        // CRITICAL: Existing users should NEVER see onboarding again
-        // Only go to onboarding if they somehow weren't onboarded (edge case)
+        // LOGIN = Dashboard
         setTimeout(() => {
-          if (isOnboarded) {
-            console.log('Returning user going to dashboard');
-            router.push('/dashboard');
-          } else {
-            console.log('Edge case: existing user not onboarded, going to onboarding');
-            router.push('/onboarding');
-          }
-        }, 2000);
+          router.push('/dashboard');
+        }, 1500);
         
       } else {
-        // SIGNUP: Brand new user
-        console.log('Attempting signup for new user');
+        // SIGNUP: New user - go to onboarding
         const name = nameRef.current?.value.trim() || '';
         if (!name) {
           setError('Please enter your full name');
@@ -204,31 +167,29 @@ export default function AuthPage() {
           return;
         }
         
-        const { user, isOnboarded } = await authService.register(email, password, name);
+        await authService.register(email, password, name);
         
-        console.log('Signup successful, new user:', user.$id, 'onboarded:', isOnboarded);
-        setSuccess('Account created! Redirecting to onboarding...');
+        setSuccess('Account created! Setting up your experience...');
         
-        // NEW USERS: Always go to onboarding (isOnboarded should be false)
+        // SIGNUP = Onboarding
         setTimeout(() => {
-          console.log('New user going to onboarding');
           router.push('/onboarding');
-        }, 2000);
+        }, 1500);
       }
     } catch (err: any) {
       console.error('Auth error:', err);
       
-      // Handle specific auth service errors
-      if (err.message.includes('Invalid credentials')) {
-        setError('Invalid email or password.');
-      } else if (err.message.includes('user with the same id, email')) {
-        setError('Account already exists. Try signing in instead.');
-        setTimeout(() => setIsLogin(true), 3000);
+      // Handle specific errors
+      if (err.message.includes('Invalid credentials') || err.message.includes('invalid credentials')) {
+        setError('Invalid email or password. Please try again.');
+      } else if (err.message.includes('user with the same id, email') || err.message.includes('already exists')) {
+        setError('Account already exists. Please sign in instead.');
+        setTimeout(() => setIsLogin(true), 2000);
       } else if (err.message.includes('Password must be between')) {
         setError('Password must be between 8 and 265 characters.');
       } else if (err.message.includes('Invalid email')) {
         setError('Please enter a valid email address.');
-      } else if (err.message.includes('network')) {
+      } else if (err.message.includes('network') || err.message.includes('Network')) {
         setError('Network error. Please check your connection.');
       } else {
         setError('Something went wrong. Please try again.');
@@ -238,7 +199,7 @@ export default function AuthPage() {
     }
   };
 
-  // Alert component with proper styling
+  // Alert component
   const Alert = ({ type, children }: { type: 'error' | 'success' | 'warning', children: React.ReactNode }) => {
     const icons = {
       error: <X className="h-5 w-5 flex-shrink-0" />,
@@ -264,18 +225,22 @@ export default function AuthPage() {
     );
   };
 
-  // Show loading screen while checking session
-  if (sessionLoading) {
+  // BETTER LOADING SCREEN - only shows briefly
+  if (initialLoading) {
     return (
-      <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
         <div className="text-center">
-          <div className="w-16 h-16 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mb-4 mx-auto">
-            <Film className="text-white animate-pulse" size={32} />
+          <div className="relative">
+            <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mb-6 mx-auto shadow-2xl">
+              <Film className="text-white animate-pulse" size={40} />
+            </div>
+            <div className="absolute -inset-4 bg-gradient-to-r from-red-500/20 to-red-700/20 rounded-full blur-xl animate-pulse"></div>
           </div>
-          <h2 className="text-white text-xl font-semibold mb-2">DJ Afro Movies</h2>
+          <h2 className="text-white text-2xl font-bold mb-3">DJ Afro Movies</h2>
           <div className="flex items-center justify-center space-x-2">
-            <Loader2 className="h-5 w-5 animate-spin text-red-400" />
-            <span className="text-gray-400">Checking session...</span>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce"></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0.1s'}}></div>
+            <div className="w-2 h-2 bg-red-500 rounded-full animate-bounce" style={{animationDelay: '0.2s'}}></div>
           </div>
         </div>
       </div>
@@ -283,10 +248,9 @@ export default function AuthPage() {
   }
 
   return (
-    <div className="auth-container flex flex-col md:flex-row">
-      {/* Left side - Clean movie poster with simple gradient */}
+    <div className="auth-container flex flex-col md:flex-row min-h-screen">
+      {/* Left side - Movie poster */}
       <div className="auth-image-section hidden md:block md:w-1/2 h-screen relative overflow-hidden">
-        {/* Rotating background images */}
         {movieImages.map((image, index) => (
           <div
             key={index}
@@ -303,12 +267,11 @@ export default function AuthPage() {
               className="object-cover"
               priority={index === 0}
             />
-            {/* Simple bottom gradient ONLY - no other overlays */}
             <div className="absolute inset-0 bg-gradient-to-t from-black/70 via-transparent to-transparent"></div>
           </div>
         ))}
         
-        {/* Logo at top left */}
+        {/* Logo */}
         <div className="absolute top-8 left-8 z-10">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center shadow-lg">
@@ -327,7 +290,6 @@ export default function AuthPage() {
             Stream exclusive movies in 4K quality
           </p>
           
-          {/* Simple features */}
           <div className="flex space-x-8">
             <div className="flex items-center space-x-2">
               <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
@@ -335,38 +297,9 @@ export default function AuthPage() {
               </div>
               <span className="text-gray-300">4K Quality</span>
             </div>
-            
             <div className="flex items-center space-x-2">
               <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-                <svg 
-                  width="20" 
-                  height="20" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  className="text-red-500"
-                  stroke="currentColor" 
-                  strokeWidth="2"
-                >
-                  <path d="M12 17.8L5.8 21L7 14.1L2 9.3L8.9 8.5L12 2L15.1 8.5L22 9.3L17 14.1L18.2 21L12 17.8Z" />
-                </svg>
-              </div>
-              <span className="text-gray-300">Exclusive</span>
-            </div>
-            
-            <div className="flex items-center space-x-2">
-              <div className="w-10 h-10 bg-red-500/20 rounded-full flex items-center justify-center">
-                <svg 
-                  width="20" 
-                  height="20" 
-                  viewBox="0 0 24 24" 
-                  fill="none" 
-                  className="text-red-500"
-                  stroke="currentColor" 
-                  strokeWidth="2"
-                >
-                  <path d="M9 12l2 2 4-4" />
-                  <circle cx="12" cy="12" r="10" />
-                </svg>
+                <CheckCircle className="text-red-500" size={20} />
               </div>
               <span className="text-gray-300">Ad-Free</span>
             </div>
@@ -375,190 +308,190 @@ export default function AuthPage() {
       </div>
       
       {/* Right side - Auth form */}
-      <div className="auth-form-section flex-1 flex flex-col justify-center items-center p-6 md:overflow-y-auto">
-        {/* Mobile background image */}
+      <div className="auth-form-section flex-1 flex flex-col justify-center items-center p-6 bg-gray-900">
+        {/* Mobile background */}
         <div className="md:hidden absolute inset-0">
           <Image 
             src={movieImages[currentImageIndex]} 
-            alt="DJ Afro Movies Background"
+            alt="Background"
             fill
             className="object-cover"
           />
-          <div className="absolute inset-0 bg-black/70"></div>
+          <div className="absolute inset-0 bg-black/80"></div>
         </div>
         
-        <div className="form-container w-full max-w-md p-6 md:p-0 relative z-10">
-          <div className="auth-form-container">
-            {/* Mobile logo */}
-            <div className="mobile-logo flex items-center justify-center space-x-2 md:hidden mb-8">
-              <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
-                <Film className="text-white" size={24} />
-              </div>
-              <h1 className="text-2xl font-bold text-white">DJ Afro Movies</h1>
+        <div className="form-container w-full max-w-md relative z-10">
+          {/* Mobile logo */}
+          <div className="flex items-center justify-center space-x-2 md:hidden mb-8">
+            <div className="w-12 h-12 bg-red-600 rounded-full flex items-center justify-center">
+              <Film className="text-white" size={24} />
             </div>
-            
-            {/* Form header */}
-            <div className="text-center mb-8">
-              <h2 className="text-3xl font-bold text-white mb-2">
-                {isLogin ? 'Welcome Back' : 'Join Us Today'}
-              </h2>
-              <p className="text-gray-400">
-                {isLogin 
-                  ? 'Sign in to access your premium content' 
-                  : 'Create your account and start streaming'}
-              </p>
-            </div>
-            
-            {/* Alerts */}
-            <div className="space-y-4 mb-6">
-              {error && <Alert type="error">{error}</Alert>}
-              {success && <Alert type="success">{success}</Alert>}
-              {warning && <Alert type="warning">{warning}</Alert>}
-            </div>
-            
-            {/* Form */}
-            <form onSubmit={handleSubmit} className="space-y-6">
-              {/* Name field (signup only) */}
-              {!isLogin && (
-                <div className="input-group space-y-2">
-                  <label htmlFor="name" className="block text-sm font-medium text-gray-300">
-                    Full Name
-                  </label>
-                  <div className="relative">
-                    <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                      <User className="input-icon h-5 w-5 text-gray-500" />
-                    </div>
-                    <input
-                      id="name"
-                      name="name"
-                      type="text"
-                      ref={nameRef}
-                      required
-                      placeholder="Enter your full name"
-                      className="input-field bg-gray-800/60 backdrop-blur-sm block w-full pl-10 pr-3 py-3 rounded-lg text-white placeholder-gray-400 focus:outline-none transition-all"
-                    />
-                  </div>
-                </div>
-              )}
-              
-              {/* Email field */}
-              <div className="input-group space-y-2">
-                <label htmlFor="email" className="block text-sm font-medium text-gray-300">
-                  Email Address
+            <h1 className="text-2xl font-bold text-white">DJ Afro Movies</h1>
+          </div>
+          
+          {/* Form header */}
+          <div className="text-center mb-8">
+            <h2 className="text-3xl font-bold text-white mb-2">
+              {isLogin ? 'Welcome Back' : 'Join Us Today'}
+            </h2>
+            <p className="text-gray-400">
+              {isLogin 
+                ? 'Sign in to access your premium content' 
+                : 'Create your account and start streaming'}
+            </p>
+          </div>
+          
+          {/* Alerts */}
+          <div className="space-y-4 mb-6">
+            {error && <Alert type="error">{error}</Alert>}
+            {success && <Alert type="success">{success}</Alert>}
+            {warning && <Alert type="warning">{warning}</Alert>}
+          </div>
+          
+          {/* Form */}
+          <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Name field (signup only) */}
+            {!isLogin && (
+              <div className="space-y-2">
+                <label htmlFor="name" className="block text-sm font-medium text-gray-300">
+                  Full Name
                 </label>
                 <div className="relative">
                   <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Mail className="input-icon h-5 w-5 text-gray-500" />
+                    <User className="h-5 w-5 text-gray-500" />
                   </div>
                   <input
-                    id="email"
-                    name="email"
-                    type="email"
-                    ref={emailRef}
+                    id="name"
+                    name="name"
+                    type="text"
+                    ref={nameRef}
                     required
-                    autoComplete="email"
-                    placeholder="Enter your email"
-                    className="input-field bg-gray-800/60 backdrop-blur-sm block w-full pl-10 pr-3 py-3 rounded-lg text-white placeholder-gray-400 focus:outline-none transition-all"
+                    placeholder="Enter your full name"
+                    className="bg-gray-800/80 backdrop-blur-sm block w-full pl-10 pr-3 py-3 rounded-lg text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
                   />
                 </div>
               </div>
-              
-              {/* Password field */}
-              <div className="input-group space-y-2">
-                <div className="flex items-center justify-between">
-                  <label htmlFor="password" className="block text-sm font-medium text-gray-300">
-                    Password
-                  </label>
-                  {isLogin && (
-                    <button
-                      type="button"
-                      className="text-sm text-red-400 hover:text-red-300 transition-colors"
-                    >
-                      Forgot password?
-                    </button>
-                  )}
+            )}
+            
+            {/* Email field */}
+            <div className="space-y-2">
+              <label htmlFor="email" className="block text-sm font-medium text-gray-300">
+                Email Address
+              </label>
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Mail className="h-5 w-5 text-gray-500" />
                 </div>
-                <div className="relative">
-                  <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
-                    <Lock className="input-icon h-5 w-5 text-gray-500" />
-                  </div>
-                  <input
-                    id="password"
-                    name="password"
-                    type={showPassword ? "text" : "password"}
-                    ref={passwordRef}
-                    required
-                    autoComplete={isLogin ? "current-password" : "new-password"}
-                    placeholder="Enter your password"
-                    className="input-field bg-gray-800/60 backdrop-blur-sm block w-full pl-10 pr-10 py-3 rounded-lg text-white placeholder-gray-400 focus:outline-none transition-all"
-                  />
+                <input
+                  id="email"
+                  name="email"
+                  type="email"
+                  ref={emailRef}
+                  required
+                  autoComplete="email"
+                  placeholder="Enter your email"
+                  className="bg-gray-800/80 backdrop-blur-sm block w-full pl-10 pr-3 py-3 rounded-lg text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                />
+              </div>
+            </div>
+            
+            {/* Password field */}
+            <div className="space-y-2">
+              <div className="flex items-center justify-between">
+                <label htmlFor="password" className="block text-sm font-medium text-gray-300">
+                  Password
+                </label>
+                {isLogin && (
                   <button
                     type="button"
-                    className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors"
-                    onClick={() => setShowPassword(!showPassword)}
-                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="text-sm text-red-400 hover:text-red-300 transition-colors"
                   >
-                    {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
+                    Forgot password?
                   </button>
-                </div>
+                )}
               </div>
-              
-              {/* Submit button */}
-              <button
-                type="submit"
-                disabled={loading}
-                className={`submit-button w-full font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300 flex items-center justify-center relative ${loading ? 'loading' : ''}`}
-              >
-                <div className="spinner">
-                  <Loader2 className="h-5 w-5 animate-spin" />
+              <div className="relative">
+                <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                  <Lock className="h-5 w-5 text-gray-500" />
                 </div>
-                <div className="button-content flex items-center">
-                  <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
-                  <ArrowRight className="ml-2 h-5 w-5" />
-                </div>
-              </button>
-            </form>
-            
-            {/* Toggle between login and signup */}
-            <div className="mt-8 text-center">
-              <p className="text-gray-400">
-                {isLogin ? "Don't have an account?" : "Already have an account?"}
+                <input
+                  id="password"
+                  name="password"
+                  type={showPassword ? "text" : "password"}
+                  ref={passwordRef}
+                  required
+                  autoComplete={isLogin ? "current-password" : "new-password"}
+                  placeholder="Enter your password"
+                  className="bg-gray-800/80 backdrop-blur-sm block w-full pl-10 pr-10 py-3 rounded-lg text-white placeholder-gray-400 border border-gray-700 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-red-500 transition-all"
+                />
                 <button
                   type="button"
-                  onClick={() => setIsLogin(!isLogin)}
-                  className="toggle-button ml-2 font-medium"
-                  disabled={loading}
+                  className="absolute inset-y-0 right-0 pr-3 flex items-center text-gray-500 hover:text-gray-300 transition-colors"
+                  onClick={() => setShowPassword(!showPassword)}
+                  aria-label={showPassword ? "Hide password" : "Show password"}
                 >
-                  {isLogin ? 'Sign Up' : 'Sign In'}
+                  {showPassword ? <EyeOff className="h-5 w-5" /> : <Eye className="h-5 w-5" />}
                 </button>
-              </p>
+              </div>
             </div>
             
-            {/* Additional info */}
-            <div className="mt-6 text-center text-xs text-gray-500">
-              <p>
-                By {isLogin ? 'signing in' : 'creating an account'}, you agree to our{' '}
-                <button className="text-red-400 hover:text-red-300 transition-colors">
-                  Terms of Service
-                </button>{' '}
-                and{' '}
-                <button className="text-red-400 hover:text-red-300 transition-colors">
-                  Privacy Policy
-                </button>
-              </p>
-            </div>
-            
-            {/* Back button (only on mobile) */}
-            <div className="mt-8 md:hidden">
+            {/* Submit button */}
+            <button
+              type="submit"
+              disabled={loading}
+              className={`w-full bg-gradient-to-r from-red-600 to-red-700 hover:from-red-700 hover:to-red-800 text-white font-bold py-3 px-4 rounded-lg focus:outline-none focus:ring-2 focus:ring-red-500 focus:ring-offset-2 focus:ring-offset-gray-900 transition-all duration-300 flex items-center justify-center ${
+                loading ? 'opacity-75 cursor-not-allowed' : ''
+              }`}
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="h-5 w-5 animate-spin mr-2" />
+                  <span>{isLogin ? 'Signing In...' : 'Creating Account...'}</span>
+                </>
+              ) : (
+                <>
+                  <span>{isLogin ? 'Sign In' : 'Create Account'}</span>
+                  <ArrowRight className="ml-2 h-5 w-5" />
+                </>
+              )}
+            </button>
+          </form>
+          
+          {/* Toggle between login and signup */}
+          <div className="mt-8 text-center">
+            <p className="text-gray-400">
+              {isLogin ? "Don't have an account?" : "Already have an account?"}
               <button
-                onClick={() => router.push('/')}
-                className="flex items-center text-gray-400 hover:text-white transition-colors"
+                type="button"
+                onClick={() => setIsLogin(!isLogin)}
+                className="ml-2 font-medium text-red-400 hover:text-red-300 transition-colors"
                 disabled={loading}
               >
-                <ChevronLeft className="h-5 w-5 mr-1" />
-                <span>Back to Home</span>
+                {isLogin ? 'Sign Up' : 'Sign In'}
               </button>
-            </div>
+            </p>
+          </div>
+          
+          {/* Terms */}
+          <div className="mt-6 text-center text-xs text-gray-500">
+            <p>
+              By {isLogin ? 'signing in' : 'creating an account'}, you agree to our{' '}
+              <span className="text-red-400">Terms of Service</span>{' '}
+              and{' '}
+              <span className="text-red-400">Privacy Policy</span>
+            </p>
+          </div>
+          
+          {/* Back button (mobile only) */}
+          <div className="mt-8 md:hidden">
+            <button
+              onClick={() => router.push('/')}
+              className="flex items-center text-gray-400 hover:text-white transition-colors"
+              disabled={loading}
+            >
+              <ChevronLeft className="h-5 w-5 mr-1" />
+              <span>Back to Home</span>
+            </button>
           </div>
         </div>
       </div>
