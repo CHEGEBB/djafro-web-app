@@ -243,7 +243,7 @@ const MovieHeroBanner: React.FC<{
 }> = ({ movies, onPlay, onToggleWishlist }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
-  const intervalRef = useRef<NodeJS.Timeout>();
+  const intervalRef = useRef<NodeJS.Timeout | null>(null);
 
   const currentMovie = movies[currentIndex];
 
