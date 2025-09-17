@@ -7,6 +7,7 @@ import { authService, AuthState, AuthUser } from './auth_service';
 
 // Define types
 export type Movie = {
+  $createdAt: any;
   id: string;
   title: string;
   description: string;
