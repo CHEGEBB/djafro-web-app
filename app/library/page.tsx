@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/library/page.tsx
 'use client';
 
@@ -75,7 +76,7 @@ const WelcomeBanner: React.FC<{ userName: string; stats: LibraryStats }> = ({ us
                   Welcome back, <span className="text-red-500">{userName}</span>
                 </h1>
                 <p className="text-gray-400 text-sm md:text-base">
-                  Here's your personal movie collection
+                  Here&apos;s your personal movie collection
                 </p>
               </div>
             </div>

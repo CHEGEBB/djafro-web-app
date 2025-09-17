@@ -18,6 +18,8 @@ interface MovieRowProps {
   onAddToWishlist?: (movieId: string) => Promise<void>;
   showWishlistBadge?: boolean;
   showProgress?: boolean;
+  rowId: string; // Add unique row identifier
+  enableAutoScroll?: boolean; // Enable auto-scrolling
 }
 
 const MovieRow: React.FC<MovieRowProps> = ({ 
@@ -26,7 +28,9 @@ const MovieRow: React.FC<MovieRowProps> = ({
   isLoading = false,
   onAddToWishlist,
   showWishlistBadge = false,
-  showProgress = false
+  showProgress = false,
+  rowId,
+  enableAutoScroll = false
 }) => {
   const { colors } = useTheme();
   const router = useRouter();
@@ -37,6 +41,65 @@ const MovieRow: React.FC<MovieRowProps> = ({
   const [hoveredCardIndex, setHoveredCardIndex] = useState<number | null>(null);
   const [scrollPosition, setScrollPosition] = useState(0);
   const [updatingWishlist, setUpdatingWishlist] = useState<Set<string>>(new Set());
+  const [isPaused, setIsPaused] = useState(false);
+  const autoScrollRef = useRef<NodeJS.Timeout | null>(null);
+  
+  // Create unique movie IDs to prevent key conflicts
+  const moviesWithUniqueIds = React.useMemo(() => {
+    return movies.map((movie, index) => ({
+      ...movie,
+      uniqueId: `${rowId}-${movie.id || movie.title}-${index}`,
+      originalId: movie.id // Keep original ID for API calls
+    }));
+  }, [movies, rowId]);
+
+  // Auto-scroll functionality
+  useEffect(() => {
+    if (!enableAutoScroll || !rowRef.current || moviesWithUniqueIds.length <= 5 || isPaused) {
+      return;
+    }
+
+    const startAutoScroll = () => {
+      autoScrollRef.current = setInterval(() => {
+        if (!rowRef.current || isPaused) return;
+        
+        const { scrollLeft, scrollWidth, clientWidth } = rowRef.current;
+        const maxScroll = scrollWidth - clientWidth;
+        
+        // If at the end, reset to beginning
+        if (scrollLeft >= maxScroll - 10) {
+          rowRef.current.scrollTo({
+            left: 0,
+            behavior: 'smooth'
+          });
+        } else {
+          // Scroll by one card width
+          const cardWidth = 200; // Approximate card width including gap
+          rowRef.current.scrollTo({
+            left: scrollLeft + cardWidth,
+            behavior: 'smooth'
+          });
+        }
+      }, 3000); // Auto-scroll every 3 seconds
+    };
+
+    startAutoScroll();
+
+    return () => {
+      if (autoScrollRef.current) {
+        clearInterval(autoScrollRef.current);
+      }
+    };
+  }, [enableAutoScroll, moviesWithUniqueIds.length, isPaused]);
+
+  // Pause auto-scroll on hover
+  const handleMouseEnter = () => {
+    setIsPaused(true);
+  };
+
+  const handleMouseLeave = () => {
+    setIsPaused(false);
+  };
   
   // Manual scroll
   const scroll = (direction: 'left' | 'right') => {
@@ -87,12 +150,11 @@ const MovieRow: React.FC<MovieRowProps> = ({
     
     if (!hasVideo) {
       console.warn('No video source available for movie:', movie.title);
-      // You could show a toast notification here
       return;
     }
 
-    // Navigate to the play page with the movie ID
-    router.push(`/play?id=${movie.id || movie.uniqueId}`);
+    // Use original ID for navigation
+    router.push(`/play?id=${movie.originalId || movie.id}`);
   }, [router]);
   
   // Handle play button click
@@ -108,14 +170,12 @@ const MovieRow: React.FC<MovieRowProps> = ({
     // Check if user is authenticated
     const authState = authService.getState();
     if (!authState.isAuthenticated) {
-      // Redirect to login or show login modal
       router.push('/auth?redirect=/dashboard');
       return;
     }
     
-    const movieId = movie.id || movie.uniqueId;
+    const movieId = movie.originalId || movie.id;
     
-    // Prevent multiple simultaneous requests for the same movie
     if (updatingWishlist.has(movieId)) {
       return;
     }
@@ -123,21 +183,14 @@ const MovieRow: React.FC<MovieRowProps> = ({
     try {
       setUpdatingWishlist(prev => new Set(prev).add(movieId));
       
-      // Use the service's built-in wishlist toggle if available
       if (isInitialized && service.toggleWishlist) {
         await service.toggleWishlist(movieId);
-      } 
-      // Fallback to the provided onAddToWishlist callback
-      else if (onAddToWishlist) {
+      } else if (onAddToWishlist) {
         await onAddToWishlist(movieId);
       }
       
-      // The movie list will be refreshed by the parent component
-      // or through the service's internal state management
-      
     } catch (error) {
       console.error('Error toggling wishlist:', error);
-      // You could show an error toast here
     } finally {
       setUpdatingWishlist(prev => {
         const newSet = new Set(prev);
@@ -150,10 +203,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
   // Handle more info click
   const handleMoreInfo = useCallback((movie: any, event: React.MouseEvent) => {
     event.stopPropagation();
-    // Navigate to movie details page or open info modal
     console.log('Show more info for:', movie.title);
-    // Example implementation:
-    // router.push(`/movies/${movie.id}`);
   }, []);
   
   // Render loading skeleton
@@ -164,7 +214,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
         <div className="movie-row__container relative">
           <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-5 xl:grid-cols-6 2xl:grid-cols-8 gap-4">
             {Array(6).fill(0).map((_, i) => (
-              <div key={i} className="aspect-[2/3] rounded-lg bg-gray-800 animate-pulse"></div>
+              <div key={`${rowId}-skeleton-${i}`} className="aspect-[2/3] rounded-lg bg-gray-800 animate-pulse"></div>
             ))}
           </div>
         </div>
@@ -173,7 +223,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
   }
   
   // If no movies
-  if (!movies || movies.length === 0) {
+  if (!moviesWithUniqueIds || moviesWithUniqueIds.length === 0) {
     return (
       <div className="movie-row movie-row--empty mb-8">
         <h2 className="movie-row__title text-xl font-semibold mb-4">{title}</h2>
@@ -184,19 +234,25 @@ const MovieRow: React.FC<MovieRowProps> = ({
     );
   }
   
-  // Ensure each movie has a unique ID
-  const moviesWithUniqueIds = movies.map((movie, index) => ({
-    ...movie,
-    uniqueId: movie.id || `movie-${title}-${index}`
-  }));
-  
   return (
-    <div className="movie-row mb-8">
+    <div 
+      className="movie-row mb-8"
+      onMouseEnter={handleMouseEnter}
+      onMouseLeave={handleMouseLeave}
+    >
       <div className="movie-row__header flex items-center justify-between mb-4">
         <h2 className="movie-row__title text-xl font-semibold">{title}</h2>
         
+        {/* Auto-scroll indicator */}
+        {enableAutoScroll && moviesWithUniqueIds.length > 5 && (
+          <div className="flex items-center text-xs text-gray-400">
+            <div className={`w-2 h-2 rounded-full mr-2 ${isPaused ? 'bg-gray-400' : 'bg-green-400 animate-pulse'}`}></div>
+            {isPaused ? 'Paused' : 'Auto-scrolling'}
+          </div>
+        )}
+        
         {/* Optional: Category Explore Link */}
-        {movies.length >= 5 && (
+        {moviesWithUniqueIds.length >= 5 && (
           <button className="text-sm text-gray-400 hover:text-white transition-colors">
             Explore All
           </button>
@@ -208,7 +264,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
         {showLeftArrow && (
           <button 
             onClick={() => scroll('left')}
-            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 hover:bg-black/90 rounded-full p-2 shadow-lg"
+            className="absolute left-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 hover:bg-black/90 rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110"
             aria-label="Scroll left"
           >
             <ChevronLeft size={20} />
@@ -218,11 +274,11 @@ const MovieRow: React.FC<MovieRowProps> = ({
         {/* Movie List */}
         <div 
           ref={rowRef}
-          className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide"
+          className="flex space-x-4 overflow-x-auto pb-4 scrollbar-hide smooth-scroll"
           onScroll={handleScroll}
         >
           {moviesWithUniqueIds.map((movie, index) => {
-            const movieId = movie.id || movie.uniqueId;
+            const movieId = movie.originalId || movie.id;
             const isWishlistUpdating = updatingWishlist.has(movieId);
             const hasVideo = movie.videoUrl || 
                            movie.videoUrls?.original || 
@@ -233,7 +289,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
             
             return (
               <div 
-                key={movie.uniqueId} 
+                key={movie.uniqueId}
                 className={`
                   movie-row__card flex-shrink-0 cursor-pointer
                   w-36 sm:w-40 md:w-44 lg:w-48 xl:w-56 
@@ -281,7 +337,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
                   {showProgress && movie.progress > 0 && (
                     <div className="absolute bottom-0 left-0 right-0 h-1 bg-gray-800">
                       <div 
-                        className="h-full"
+                        className="h-full transition-all duration-300"
                         style={{ 
                           width: `${movie.progress * 100}%`, 
                           backgroundColor: colors?.primary || '#E50914' 
@@ -294,14 +350,14 @@ const MovieRow: React.FC<MovieRowProps> = ({
                   {hasVideo && (
                     <div className="absolute inset-0 opacity-0 hover:opacity-100 transition-opacity duration-300 flex items-center justify-center gap-2">
                       <button 
-                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-colors"
+                        className="p-2 bg-red-600 text-white rounded-full hover:bg-red-700 transition-all duration-200 hover:scale-110"
                         onClick={(e) => handlePlayClick(movie, e)}
                         title="Play movie"
                       >
                         <Play size={16} />
                       </button>
                       <button 
-                        className={`p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors ${isWishlistUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
+                        className={`p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-all duration-200 hover:scale-110 ${isWishlistUpdating ? 'opacity-50 cursor-not-allowed' : ''}`}
                         onClick={(e) => handleToggleWishlist(movie, e)}
                         disabled={isWishlistUpdating}
                         title={movie.isWishlisted ? 'Remove from My List' : 'Add to My List'}
@@ -313,7 +369,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
                         )}
                       </button>
                       <button 
-                        className="p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-colors"
+                        className="p-2 bg-gray-800 text-white rounded-full hover:bg-gray-700 transition-all duration-200 hover:scale-110"
                         onClick={(e) => handleMoreInfo(movie, e)}
                         title="More info"
                       >
@@ -343,7 +399,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
                     <div className="mt-2 hidden md:block">
                       <div className="flex flex-wrap gap-1 mb-1">
                         {movie.genres && movie.genres.slice(0, 2).map((genre: string, idx: number) => (
-                          <span key={idx} className="text-xs px-1.5 py-0.5 bg-gray-800 rounded text-gray-300">
+                          <span key={`${movie.uniqueId}-genre-${idx}`} className="text-xs px-1.5 py-0.5 bg-gray-800 rounded text-gray-300">
                             {genre}
                           </span>
                         ))}
@@ -367,7 +423,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
         {showRightArrow && (
           <button 
             onClick={() => scroll('right')}
-            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 hover:bg-black/90 rounded-full p-2 shadow-lg"
+            className="absolute right-0 top-1/2 -translate-y-1/2 z-10 bg-black/70 hover:bg-black/90 rounded-full p-2 shadow-lg transition-all duration-200 hover:scale-110"
             aria-label="Scroll right"
           >
             <ChevronRight size={20} />
@@ -376,16 +432,16 @@ const MovieRow: React.FC<MovieRowProps> = ({
       </div>
       
       {/* Scroll indicator dots for larger collections */}
-      {movies.length > 5 && (
+      {moviesWithUniqueIds.length > 5 && (
         <div className="flex justify-center space-x-1 mt-3">
-          {Array(Math.ceil(movies.length / 5)).fill(0).map((_, index) => {
+          {Array(Math.ceil(moviesWithUniqueIds.length / 5)).fill(0).map((_, index) => {
             const isActive = 
               scrollPosition >= (index * (rowRef.current?.clientWidth || 0) * 0.8) && 
               scrollPosition < ((index + 1) * (rowRef.current?.clientWidth || 0) * 0.8);
             
             return (
               <button
-                key={`indicator-${index}`}
+                key={`${rowId}-indicator-${index}`}
                 className={`h-1.5 rounded-full transition-all ${
                   isActive 
                     ? 'w-6 bg-red-600' 

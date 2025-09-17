@@ -141,7 +141,7 @@ const ResponsiveGenreSelector: React.FC<{
             <div className="mt-4 flex items-center justify-between bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-xl px-4 py-3">
               <div className="flex items-center gap-2">
                 <div className="w-2 h-2 bg-red-500 rounded-full animate-pulse"></div>
-                <span className="text-red-400 text-sm font-medium">Filtered by "{selectedGenre}"</span>
+                <span className="text-red-400 text-sm font-medium">Filtered by &ldquo;{selectedGenre}&rdquo;</span>
               </div>
               <button
                 onClick={() => onGenreSelect('All')}
@@ -218,7 +218,7 @@ const ResponsiveGenreSelector: React.FC<{
             <div className="flex items-center gap-3">
               <div className="w-3 h-3 bg-red-500 rounded-full animate-pulse"></div>
               <span className="text-red-400 font-semibold">
-                Showing movies in "{selectedGenre}" genre
+                Showing movies in &ldquo;{selectedGenre}&rdquo; genre
               </span>
             </div>
             <button

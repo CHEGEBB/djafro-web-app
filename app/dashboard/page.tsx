@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/page.tsx
 'use client';
 
@@ -21,11 +22,7 @@ export default function Dashboard() {
   const [continueWatching, setContinueWatching] = useState<any[]>([]);
   const [wishlistedMovies, setWishlistedMovies] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
-  const [hasMore, setHasMore] = useState(true);
-  const [page, setPage] = useState(1);
   const [selectedGenre, setSelectedGenre] = useState('All');
-  const observerRef = useRef<IntersectionObserver>();
-  const loadMoreRef = useRef<HTMLDivElement>(null);
   
   // Load initial data
   useEffect(() => {
@@ -78,73 +75,6 @@ export default function Dashboard() {
     'Thriller', 'Sci-Fi', 'Romance', 'Documentary'
   ];
 
-  // Setup infinite scrolling
-  const loadMoreMovies = useCallback(async () => {
-    if (isLoading || !hasMore) return;
-    
-    try {
-      setIsLoading(true);
-      const nextPage = page + 1;
-      const moreMovies = await service.getAllMovies({ 
-        offset: (nextPage - 1) * 20,
-        limit: 20
-      });
-      
-      if (moreMovies.length === 0) {
-        setHasMore(false);
-      } else {
-        // Add movies to relevant categories based on their genres
-        const newAction = [...actionMovies];
-        const newComedy = [...comedyMovies];
-        const newDrama = [...dramaMovies];
-        
-        moreMovies.forEach(movie => {
-          if (movie.genres.includes('Action')) {
-            newAction.push(movie);
-          }
-          if (movie.genres.includes('Comedy')) {
-            newComedy.push(movie);
-          }
-          if (movie.genres.includes('Drama')) {
-            newDrama.push(movie);
-          }
-        });
-        
-        setActionMovies(newAction);
-        setComedyMovies(newComedy);
-        setDramaMovies(newDrama);
-        setPage(nextPage);
-      }
-    } catch (error) {
-      console.error('Error loading more movies:', error);
-    } finally {
-      setIsLoading(false);
-    }
-  }, [actionMovies, comedyMovies, dramaMovies, hasMore, isLoading, page, service]);
-  
-  // Setup intersection observer for infinite scroll
-  useEffect(() => {
-    if (observerRef.current) {
-      observerRef.current.disconnect();
-    }
-    
-    observerRef.current = new IntersectionObserver(entries => {
-      if (entries[0].isIntersecting && !isLoading && hasMore) {
-        loadMoreMovies();
-      }
-    }, { threshold: 0.5 });
-    
-    if (loadMoreRef.current) {
-      observerRef.current.observe(loadMoreRef.current);
-    }
-    
-    return () => {
-      if (observerRef.current) {
-        observerRef.current.disconnect();
-      }
-    };
-  }, [loadMoreMovies, isLoading, hasMore]);
-  
   // Handle add to wishlist
   const handleAddToWishlist = async (movieId: string) => {
     try {
@@ -173,10 +103,11 @@ export default function Dashboard() {
       console.error('Error toggling wishlist:', error);
     }
   };
+
   const handleGenreChange = (genre: string) => {
     setSelectedGenre(genre);
-    setHasMore(true);
   };
+
   return (
     <LayoutController>
       <div className="dashboard-container">
@@ -189,6 +120,7 @@ export default function Dashboard() {
             isLoading={isLoading && featuredMovies.length === 0}
           />
         </div>
+        
         {/* Genre Selector */}
         <div className="px-4 md:px-6">
           <GenreSelector
@@ -208,6 +140,7 @@ export default function Dashboard() {
               isLoading={isLoading && continueWatching.length === 0}
               onAddToWishlist={handleAddToWishlist}
               showProgress={true}
+              rowId="continue-watching"
             />
           )}
           
@@ -219,6 +152,7 @@ export default function Dashboard() {
               isLoading={isLoading && wishlistedMovies.length === 0}
               onAddToWishlist={handleAddToWishlist}
               showWishlistBadge={true}
+              rowId="my-list"
             />
           )}
           
@@ -228,6 +162,8 @@ export default function Dashboard() {
             movies={trendingMovies} 
             isLoading={isLoading && trendingMovies.length === 0}
             onAddToWishlist={handleAddToWishlist}
+            rowId="trending"
+            enableAutoScroll={true}
           />
           
           {/* New Releases Section */}
@@ -236,6 +172,8 @@ export default function Dashboard() {
             movies={newReleases} 
             isLoading={isLoading && newReleases.length === 0}
             onAddToWishlist={handleAddToWishlist}
+            rowId="new-releases"
+            enableAutoScroll={true}
           />
           
           {/* Action Movies Section */}
@@ -244,6 +182,8 @@ export default function Dashboard() {
             movies={actionMovies} 
             isLoading={isLoading && actionMovies.length === 0}
             onAddToWishlist={handleAddToWishlist}
+            rowId="action"
+            enableAutoScroll={true}
           />
           
           {/* Comedy Movies Section */}
@@ -252,6 +192,8 @@ export default function Dashboard() {
             movies={comedyMovies} 
             isLoading={isLoading && comedyMovies.length === 0}
             onAddToWishlist={handleAddToWishlist}
+            rowId="comedy"
+            enableAutoScroll={true}
           />
           
           {/* Drama Movies Section */}
@@ -260,30 +202,9 @@ export default function Dashboard() {
             movies={dramaMovies} 
             isLoading={isLoading && dramaMovies.length === 0}
             onAddToWishlist={handleAddToWishlist}
+            rowId="drama"
+            enableAutoScroll={true}
           />
-          
-          {/* Infinite scroll loading indicator */}
-          {hasMore && (
-            <div ref={loadMoreRef} className="loading-indicator">
-              {isLoading ? (
-                <div className="loading-spinner"></div>
-              ) : (
-                <div className="load-more">
-                  <ChevronDown className="w-6 h-6 text-gray-400" />
-                  <span>Scroll for more</span>
-                </div>
-              )}
-            </div>
-          )}
-          
-          {/* End of content message */}
-          {!hasMore && (
-            <div className="end-message">
-              <div className="divider"></div>
-              <span>You've reached the end</span>
-              <div className="divider"></div>
-            </div>
-          )}
         </div>
       </div>
     </LayoutController>
