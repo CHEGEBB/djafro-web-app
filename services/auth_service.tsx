@@ -225,7 +225,7 @@ class AuthService {
         [Query.equal('userId', userId), Query.limit(1)]
       );
       
-      return response.documents.length > 0 ? response.documents[0] as UserPreferences : null;
+      return response.documents.length > 0 ? response.documents[0] as unknown as UserPreferences : null;
     } catch (error) {
       console.error('Error fetching user preferences:', error);
       return null;
@@ -249,7 +249,7 @@ class AuthService {
         preferences
       );
 
-      return response as UserPreferences;
+      return response as unknown as UserPreferences;
     } catch (error) {
       console.error('Error creating user preferences:', error);
       throw error;
