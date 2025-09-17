@@ -2,13 +2,26 @@
 // app/play/page.tsx
 'use client';
 
-import React, { useEffect, useState, useCallback, useRef } from 'react';
+import React, { useEffect, useState, useCallback, useRef, Suspense } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, 
          SkipForward, SkipBack, Loader, AlertCircle, Minimize } from 'lucide-react';
 import { useMovieService, Movie } from '@/services/movie_service';
 
-export default function PlayPage() {
+// Loading fallback component
+function LoadingFallback() {
+  return (
+    <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <div className="text-center">
+        <div className="w-16 h-16 border-4 border-t-red-600 border-r-red-600 border-b-gray-800 border-l-gray-800 rounded-full animate-spin mx-auto mb-4"></div>
+        <p className="text-xl font-medium text-white">Loading video player...</p>
+      </div>
+    </div>
+  );
+}
+
+// Main play component that uses search params
+function PlayPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const movieId = searchParams.get('id');
@@ -893,32 +906,6 @@ export default function PlayPage() {
           </div>
         )}
         
-        {/* Resume from saved progress overlay */}
-        {/* {playerType === 'html5' && playerReady && movie.progress && movie.progress > 0 && movie.progress < 0.95 && autoResumeFromSaved && (
-          <div className="absolute inset-0 flex items-center justify-center bg-black/80 z-40">
-            <div className="bg-gray-900 p-6 rounded-lg max-w-md text-center">
-              <h3 className="text-xl font-bold text-white mb-4">Resume Watching?</h3>
-              <p className="text-gray-300 mb-6">
-                Would you like to continue from {formatTime(movie.progress * duration)} or start from the beginning?
-              </p>
-              <div className="flex gap-4 justify-center">
-                <button
-                  onClick={handleStartFromBeginning}
-                  className="px-4 py-2 bg-gray-700 hover:bg-gray-600 text-white rounded"
-                >
-                  Start Over
-                </button>
-                <button
-                  onClick={handleResumeFromSaved}
-                  className="px-4 py-2 bg-red-600 hover:bg-red-700 text-white rounded"
-                >
-                  Resume
-                </button>
-              </div>
-            </div>
-          </div>
-        )} */}
-        
         {/* Buffering indicator */}
         {isBuffering && (
           <div className="absolute inset-0 flex items-center justify-center bg-black/40 pointer-events-none z-30">
@@ -1142,5 +1129,14 @@ export default function PlayPage() {
         )}
       </div>
     </div>
+  );
+}
+
+// Main page component with Suspense boundary
+export default function PlayPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <PlayPageContent />
+    </Suspense>
   );
 }
