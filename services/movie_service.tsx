@@ -545,17 +545,18 @@ class MovieService {
     if (!this.isInitialized) {
       await this.initialize();
     }
-
+  
     try {
+      // Use contains instead of search for genre
       const response = await this.databases.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
         [
-          Query.search('genre', genre),
+          Query.contains('genre', genre),
           Query.limit(15)
         ]
       );
-
+  
       let result = await this.processMovieDocumentsAsync(response.documents);
       
       // If user is logged in, fetch and merge wishlist/progress information
@@ -650,29 +651,118 @@ class MovieService {
     if (!this.isInitialized) {
       await this.initialize();
     }
-
+  
     if (!query.trim()) {
       return [];
     }
-
+  
     try {
-      const response = await this.databases.listDocuments(
-        process.env.NEXT_PUBLIC_DATABASE_ID!,
-        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
-        [
-          Query.search('title', query.trim()),
-          Query.limit(20)
-        ]
-      );
-
-      let result = await this.processMovieDocumentsAsync(response.documents);
+      const searchTerm = query.trim().toLowerCase();
+      const results = new Map<string, Movie>();
+  
+      // Search by title
+      try {
+        const titleResponse = await this.databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
+          [
+            Query.contains('title', searchTerm),
+            Query.limit(50)
+          ]
+        );
+        
+        const titleMovies = await this.processMovieDocumentsAsync(titleResponse.documents);
+        titleMovies.forEach(movie => results.set(movie.id, movie));
+      } catch (error) {
+        console.warn('Title search failed:', error);
+      }
+  
+      // Search by description if we don't have enough results
+      if (results.size < 10) {
+        try {
+          const descResponse = await this.databases.listDocuments(
+            process.env.NEXT_PUBLIC_DATABASE_ID!,
+            process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
+            [
+              Query.contains('description', searchTerm),
+              Query.limit(30)
+            ]
+          );
+          
+          const descMovies = await this.processMovieDocumentsAsync(descResponse.documents);
+          descMovies.forEach(movie => {
+            if (!results.has(movie.id)) {
+              results.set(movie.id, movie);
+            }
+          });
+        } catch (error) {
+          console.warn('Description search failed:', error);
+        }
+      }
+  
+      // If still not enough results, do a broader search by getting all movies and filtering client-side
+      if (results.size < 5) {
+        try {
+          const allMoviesResponse = await this.databases.listDocuments(
+            process.env.NEXT_PUBLIC_DATABASE_ID!,
+            process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
+            [
+              Query.limit(200)
+            ]
+          );
+          
+          const allMovies = await this.processMovieDocumentsAsync(allMoviesResponse.documents);
+          
+          // Client-side filtering for better search results
+          allMovies.forEach(movie => {
+            if (!results.has(movie.id)) {
+              const titleMatch = movie.title.toLowerCase().includes(searchTerm);
+              const descMatch = movie.description.toLowerCase().includes(searchTerm);
+              const genreMatch = movie.genres.some(genre => 
+                genre.toLowerCase().includes(searchTerm)
+              );
+              
+              if (titleMatch || descMatch || genreMatch) {
+                results.set(movie.id, movie);
+              }
+            }
+          });
+        } catch (error) {
+          console.warn('Fallback search failed:', error);
+        }
+      }
+  
+      let finalResults = Array.from(results.values());
+  
+      // Sort results by relevance (title matches first)
+      finalResults.sort((a, b) => {
+        const aTitle = a.title.toLowerCase();
+        const bTitle = b.title.toLowerCase();
+        
+        const aExactMatch = aTitle === searchTerm;
+        const bExactMatch = bTitle === searchTerm;
+        
+        if (aExactMatch && !bExactMatch) return -1;
+        if (!aExactMatch && bExactMatch) return 1;
+        
+        const aStartsWith = aTitle.startsWith(searchTerm);
+        const bStartsWith = bTitle.startsWith(searchTerm);
+        
+        if (aStartsWith && !bStartsWith) return -1;
+        if (!aStartsWith && bStartsWith) return 1;
+        
+        return a.title.localeCompare(b.title);
+      });
+  
+      // Limit final results
+      finalResults = finalResults.slice(0, 20);
       
       // If user is logged in, fetch and merge wishlist/progress information
       if (this.userId) {
-        result = await this.enhanceMoviesWithUserData(result);
+        finalResults = await this.enhanceMoviesWithUserData(finalResults);
       }
       
-      return result;
+      return finalResults;
     } catch (error) {
       console.error('Error searching movies:', error);
       return [];
