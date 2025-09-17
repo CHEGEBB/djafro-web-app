@@ -219,7 +219,7 @@ const AnimatedMovieBanner: React.FC<MovieBannerProps> = ({
         <div className="movie-banner__buttons">
           <button 
             className={`movie-banner__button movie-banner__button--primary ${!hasVideo ? 'movie-banner__button--disabled' : ''}`}
-            style={{ backgroundColor: '#E50914' || '#E50914' }}
+            style={{ backgroundColor: colors?.primary || '#E50914' }}
             onClick={() => hasVideo && handleWatchNow(currentMovie)}
             disabled={!hasVideo}
             title={!hasVideo ? 'Video not available' : 'Play movie'}
