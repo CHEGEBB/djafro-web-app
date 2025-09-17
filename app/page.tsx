@@ -1073,7 +1073,7 @@ export default function DjAfroMovies() {
                             </div>
                           </div>
                         </div>
-                        <p className="text-gray-300 italic">"{testimonial.comment}"</p>
+                        <p className="text-gray-300 italic">&ldquo;{testimonial.comment}&rdquo;</p>
                       </div>
                     </div>
                   ))}
