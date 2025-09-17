@@ -1310,7 +1310,8 @@ async deleteRequest(requestId: string): Promise<boolean> {
         isTrending: doc.is_trending || false,
         progress: 0,
         userRating: 0,
-        isWishlisted: false
+        isWishlisted: false,
+        $createdAt: doc.$createdAt || null // Add this line to include $createdAt
       };
     });
 
@@ -1400,7 +1401,8 @@ async deleteRequest(requestId: string): Promise<boolean> {
         videoUrls: { sourceType: SOURCE_BUNNY },
         streamingHeaders: {},
         isReady: false,
-        isFeatured: true
+        isFeatured: true,
+        $createdAt: undefined
       }
     ];
   }

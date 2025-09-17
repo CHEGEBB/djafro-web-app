@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/play/page.tsx
 'use client';
 
@@ -798,7 +799,7 @@ export default function PlayPage() {
         <div className="text-center max-w-md">
           <AlertCircle className="w-16 h-16 text-red-600 mx-auto mb-4" />
           <h1 className="text-2xl font-bold text-white mb-2">No Video Source</h1>
-          <p className="text-gray-400 mb-6">This movie doesn't have a playable video source</p>
+          <p className="text-gray-400 mb-6">This movie doesn&apos;t have a playable video source</p>
           <button 
             onClick={handleBack}
             className="px-6 py-2 bg-red-600 hover:bg-red-700 transition-colors rounded-md text-white font-medium"

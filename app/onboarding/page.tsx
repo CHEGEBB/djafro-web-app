@@ -90,7 +90,7 @@ const OnboardingScreen = () => {
     window.location.href = '/dashboard';
   };
 
-  const handleDotClick = (index) => {
+  const handleDotClick = (index: React.SetStateAction<number>) => {
     setIsAutoPlaying(false);
     setCurrentStep(index);
   };
