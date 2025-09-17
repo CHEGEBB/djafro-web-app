@@ -4,30 +4,15 @@ import React, { useEffect, useState, useRef, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import Image from 'next/image';
 import LayoutController from '@/components/LayoutController';
-import { useMovieService } from '@/services/movie_service';
+import { useMovieService, Movie } from '@/services/movie_service';
 import { ChevronLeft, ChevronRight, Star, Heart, FilmIcon, Play, Clock, Calendar, Filter, ChevronDown, X } from 'lucide-react';
 import '@/styles/MoviesPage.scss';
 
 // Interfaces
-interface Movie {
-  id: number;
-  title: string;
-  posterUrl?: string;
-  backdropUrl?: string;
-  progress?: number;
-  isWishlisted?: boolean;
-  rating?: number;
-  year?: number;
-  duration?: string;
-  genres?: string[];
-  overview?: string;
-  isFeatured?: boolean;
-}
-
 interface MovieCardProps {
   movie: Movie;
   onPlay: (movie: Movie) => void;
-  onToggleWishlist: (movieId: number) => void;
+  onToggleWishlist: (movieId: string) => void;
 }
 
 interface MoviesSection {
@@ -239,7 +224,7 @@ const ResponsiveGenreSelector: React.FC<{
 const MovieHeroBanner: React.FC<{ 
   movies: Movie[]; 
   onPlay: (movie: Movie) => void; 
-  onToggleWishlist: (movieId: number) => void 
+  onToggleWishlist: (movieId: string) => void 
 }> = ({ movies, onPlay, onToggleWishlist }) => {
   const [currentIndex, setCurrentIndex] = useState(0);
   const [isAutoPlaying, setIsAutoPlaying] = useState(true);
@@ -292,7 +277,7 @@ const MovieHeroBanner: React.FC<{
             rgba(0, 0, 0, 0.6) 30%,
             rgba(0, 0, 0, 0.4) 70%,
             rgba(0, 0, 0, 0.8) 100%
-          ), url(${currentMovie.backdropUrl || currentMovie.posterUrl})`
+          ), url(${currentMovie.posterUrl})`
         }}
       >
         <div className="hero-banner__content">
@@ -321,11 +306,11 @@ const MovieHeroBanner: React.FC<{
               </div>
             )}
 
-            {currentMovie.overview && (
+            {currentMovie.description && (
               <p className="hero-banner__overview">
-                {currentMovie.overview.length > 250 
-                  ? `${currentMovie.overview.substring(0, 250)}...` 
-                  : currentMovie.overview}
+                {currentMovie.description.length > 250 
+                  ? `${currentMovie.description.substring(0, 250)}...` 
+                  : currentMovie.description}
               </p>
             )}
 
@@ -488,7 +473,7 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onPlay, onToggleWishlist }
 const AutoScrollSection: React.FC<{
   section: MoviesSection;
   onPlay: (movie: Movie) => void;
-  onToggleWishlist: (movieId: number) => void;
+  onToggleWishlist: (movieId: string) => void;
   onSeeAll: (sectionId: string) => void;
 }> = ({ section, onPlay, onToggleWishlist, onSeeAll }) => {
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -578,7 +563,7 @@ const SeeAllModal: React.FC<{
   movies: Movie[];
   title: string;
   onPlay: (movie: Movie) => void;
-  onToggleWishlist: (movieId: number) => void;
+  onToggleWishlist: (movieId: string) => void;
 }> = ({ isOpen, onClose, movies, title, onPlay, onToggleWishlist }) => {
   if (!isOpen) return null;
 
@@ -659,7 +644,7 @@ export default function MoviesPage() {
       setIsLoading(true);
       try {
         // Get all movies
-        const movies = await service.getAllMovies({ limit: 1000 }); // Get all movies
+        const movies: Movie[] = await service.getAllMovies({ limit: 1000 });
         setAllMovies(movies);
 
         // Extract unique genres
@@ -695,7 +680,11 @@ export default function MoviesPage() {
             id: 'recently_added',
             title: 'Recently Added',
             movies: movies
-              .sort((a, b) => (b.$createdAt || 0) - (a.$createdAt || 0))
+              .sort((a, b) => {
+                const aTime = typeof a.$createdAt === 'string' ? new Date(a.$createdAt).getTime() : (a.$createdAt || 0);
+                const bTime = typeof b.$createdAt === 'string' ? new Date(b.$createdAt).getTime() : (b.$createdAt || 0);
+                return bTime - aTime;
+              })
               .slice(0, 20),
             autoScroll: false
           },
@@ -762,7 +751,7 @@ export default function MoviesPage() {
     }
 
     loadData();
-  }, [isInitialized]);
+  }, [isInitialized, service]);
 
   const handlePlayMovie = (movie: Movie) => {
     router.push(`/play?id=${movie.id}`);
@@ -780,8 +769,7 @@ export default function MoviesPage() {
     }
   };
 
-  // Update wishlist for filtered sections as well
-  const handleToggleWishlist = async (movieId: number) => {
+  const handleToggleWishlist = async (movieId: string) => {
     try {
       await service.toggleWishlist(movieId);
       
@@ -854,7 +842,7 @@ export default function MoviesPage() {
               <FilmIcon className="w-20 h-20 text-gray-600 mb-6" />
               <h2 className="text-2xl font-bold text-white mb-4">No movies found</h2>
               <p className="text-gray-400 mb-8">
-                No movies available in the "{selectedGenre}" genre.
+                No movies available in the &ldquo;{selectedGenre}&rdquo; genre.
               </p>
               <button 
                 className="px-6 py-3 bg-red-600 hover:bg-red-700 text-white rounded-full font-semibold transition-colors"

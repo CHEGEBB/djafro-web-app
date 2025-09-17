@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // services/movie_service.tsx
 'use client'
 import { Client, Databases, ID, Query, Models } from 'appwrite';
