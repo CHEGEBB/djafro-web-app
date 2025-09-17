@@ -27,14 +27,21 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
+      <head>
+        {/* ✅ AdSense verification script */}
+        <script
+          async
+          src="https://pagead2.googlesyndication.com/pagead/js/adsbygoogle.js?client=ca-pub-2159359175366212"
+          crossOrigin="anonymous"
+        ></script>
+      </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
-        <MovieServiceProvider>
-
-          {children}
-        </MovieServiceProvider>
+          <MovieServiceProvider>
+            {children}
+          </MovieServiceProvider>
         </ThemeProvider>
       </body>
     </html>
