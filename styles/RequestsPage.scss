@@ -1,0 +1,1015 @@
+// styles/RequestsPage.scss
+
+// Variables
+$primary-color: #e50914;
+$primary-light: rgba($primary-color, 0.1);
+$secondary-color: #e87d0d;
+$text-color: #f5f5f5;
+$background-dark: #0f0f0f;
+$background-card: #1a1a1a;
+$border-color: rgba(255, 255, 255, 0.1);
+$success-color: #22c55e;
+$info-color: #3b82f6;
+$warning-color: #f59e0b;
+$danger-color: #ef4444;
+$animation-duration: 0.3s;
+
+// Mixins
+@mixin glass-effect {
+  background: rgba(25, 25, 25, 0.8);
+  backdrop-filter: blur(10px);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+}
+
+@mixin card-hover {
+  transform: translateY(-4px);
+  box-shadow: 0 10px 25px -5px rgba(0, 0, 0, 0.3);
+}
+
+@mixin gradient-text {
+  background: linear-gradient(90deg, #ffffff 0%, #d0d0d0 100%);
+  -webkit-background-clip: text;
+  background-clip: text;
+  color: transparent;
+}
+
+// Header Styles
+.requests-page {
+  background-color: $background-dark;
+  color: $text-color;
+  min-height: 100vh;
+}
+
+.requests-header {
+  position: relative;
+  height: 300px;
+  display: flex;
+  align-items: center;
+  overflow: hidden;
+  margin-bottom: 2rem;
+
+  &__background {
+    position: absolute;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    z-index: -1;
+  }
+
+  &__overlay {
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(
+      to bottom,
+      rgba(0, 0, 0, 0.7) 0%,
+      rgba(0, 0, 0, 0.9) 80%, 
+      $background-dark 100%
+    );
+    z-index: 1;
+  }
+
+  &__image {
+    object-fit: cover;
+    object-position: center;
+    opacity: 0.6;
+  }
+
+  &__content {
+    position: relative;
+    z-index: 2;
+    max-width: 800px;
+  }
+
+  &__title {
+    font-size: 3rem;
+    font-weight: 800;
+    margin-bottom: 1rem;
+    @include gradient-text;
+    animation: fadeInUp 0.6s ease-out;
+  }
+
+  &__description {
+    font-size: 1.1rem;
+    line-height: 1.6;
+    color: rgba(255, 255, 255, 0.8);
+    max-width: 600px;
+    animation: fadeInUp 0.8s ease-out;
+  }
+}
+
+// Success Alert
+.success-alert {
+  display: flex;
+  align-items: center;
+  padding: 1rem 1.5rem;
+  border-radius: 12px;
+  background: rgba($success-color, 0.1);
+  border: 1px solid rgba($success-color, 0.3);
+  margin-bottom: 2rem;
+  position: relative;
+  animation: slideInDown 0.5s ease-out;
+
+  &__icon {
+    flex-shrink: 0;
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    background: rgba($success-color, 0.2);
+    color: $success-color;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin-right: 1rem;
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__title {
+    font-weight: 700;
+    color: $success-color;
+    margin-bottom: 0.25rem;
+  }
+
+  &__message {
+    color: rgba(255, 255, 255, 0.9);
+    font-size: 0.95rem;
+  }
+
+  &__close {
+    color: rgba(255, 255, 255, 0.6);
+    background: transparent;
+    border: none;
+    cursor: pointer;
+    padding: 0.5rem;
+    border-radius: 50%;
+    transition: all $animation-duration;
+
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+  }
+}
+
+// Layout Grid
+.requests-content {
+  margin-bottom: 3rem;
+}
+
+.requests-grid {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 2rem;
+  
+  @media (min-width: 1024px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+// Requests List
+.requests-list {
+  background: $background-card;
+  border-radius: 16px;
+  overflow: hidden;
+  border: 1px solid $border-color;
+  height: fit-content;
+  transition: box-shadow $animation-duration;
+  animation: fadeIn 0.5s ease-out;
+
+  &:hover {
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  }
+
+  &__header {
+    padding: 1.5rem;
+    border-bottom: 1px solid $border-color;
+    display: flex;
+    flex-direction: column;
+    gap: 1rem;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      align-items: center;
+      justify-content: space-between;
+    }
+  }
+
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+  }
+
+  &__actions {
+    display: flex;
+    flex-direction: column;
+    gap: 0.75rem;
+    width: 100%;
+
+    @media (min-width: 768px) {
+      flex-direction: row;
+      width: auto;
+    }
+  }
+
+  &__search {
+    position: relative;
+    width: 100%;
+
+    @media (min-width: 768px) {
+      width: 200px;
+    }
+
+    svg {
+      position: absolute;
+      left: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255, 255, 255, 0.5);
+    }
+
+    input {
+      width: 100%;
+      padding: 0.75rem 1rem 0.75rem 2.5rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: white;
+      font-size: 0.95rem;
+      transition: all $animation-duration;
+
+      &::placeholder {
+        color: rgba(255, 255, 255, 0.4);
+      }
+
+      &:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba($primary-color, 0.5);
+        box-shadow: 0 0 0 2px rgba($primary-color, 0.25);
+      }
+    }
+  }
+
+  &__filter {
+    position: relative;
+    width: 100%;
+
+    @media (min-width: 768px) {
+      width: auto;
+    }
+
+    select {
+      appearance: none;
+      width: 100%;
+      padding: 0.75rem 2.5rem 0.75rem 1rem;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 8px;
+      color: white;
+      font-size: 0.95rem;
+      cursor: pointer;
+      transition: all $animation-duration;
+
+      &:focus {
+        outline: none;
+        background: rgba(255, 255, 255, 0.1);
+        border-color: rgba($primary-color, 0.5);
+        box-shadow: 0 0 0 2px rgba($primary-color, 0.25);
+      }
+    }
+
+    svg {
+      position: absolute;
+      right: 12px;
+      top: 50%;
+      transform: translateY(-50%);
+      color: rgba(255, 255, 255, 0.5);
+      pointer-events: none;
+    }
+  }
+
+  &__content {
+    min-height: 300px;
+    max-height: 600px;
+    overflow-y: auto;
+    scrollbar-width: thin;
+    scrollbar-color: rgba(255, 255, 255, 0.3) transparent;
+
+    &::-webkit-scrollbar {
+      width: 6px;
+    }
+
+    &::-webkit-scrollbar-track {
+      background: transparent;
+    }
+
+    &::-webkit-scrollbar-thumb {
+      background-color: rgba(255, 255, 255, 0.3);
+      border-radius: 20px;
+    }
+  }
+
+  &__items {
+    list-style: none;
+    padding: 0;
+    margin: 0;
+  }
+}
+
+// Request Item
+.request-item {
+  padding: 1.25rem 1.5rem;
+  border-bottom: 1px solid $border-color;
+  cursor: pointer;
+  transition: all $animation-duration;
+  display: flex;
+  align-items: flex-start;
+  gap: 1rem;
+  position: relative;
+
+  &:hover {
+    background: rgba(255, 255, 255, 0.03);
+  }
+
+  &--unread {
+    background: rgba($primary-color, 0.05);
+
+    &:hover {
+      background: rgba($primary-color, 0.1);
+    }
+
+    .request-item__title {
+      font-weight: 700;
+    }
+  }
+
+  &__content {
+    flex: 1;
+  }
+
+  &__header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 0.5rem;
+  }
+
+  &__title {
+    font-size: 1.1rem;
+    color: white;
+    margin-bottom: 0.25rem;
+    font-weight: 500;
+  }
+
+  &__unread-badge {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: $primary-color;
+    animation: pulse 2s infinite;
+  }
+
+  &__meta {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 0.75rem;
+  }
+
+  &__date {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+
+  &__excerpt {
+    font-size: 0.95rem;
+    color: rgba(255, 255, 255, 0.7);
+    line-height: 1.5;
+    margin-bottom: 0.75rem;
+  }
+
+  &__response-indicator {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba($info-color, 0.1);
+    border-radius: 12px;
+    font-size: 0.8rem;
+    color: $info-color;
+  }
+
+  &__icon {
+    margin-top: 0.25rem;
+    background: rgba(255, 255, 255, 0.05);
+    width: 36px;
+    height: 36px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex-shrink: 0;
+  }
+}
+
+// Status Badge
+.status-badge {
+  display: inline-block;
+  padding: 0.25rem 0.75rem;
+  border-radius: 12px;
+  font-size: 0.8rem;
+  font-weight: 600;
+  
+  &.status-new {
+    background: rgba($info-color, 0.1);
+    color: $info-color;
+  }
+  
+  &.status-in-progress {
+    background: rgba($warning-color, 0.1);
+    color: $warning-color;
+  }
+  
+  &.status-completed {
+    background: rgba($success-color, 0.1);
+    color: $success-color;
+  }
+  
+  &.status-rejected {
+    background: rgba($danger-color, 0.1);
+    color: $danger-color;
+  }
+}
+
+// Empty & Loading States
+.requests-empty,
+.requests-loading {
+  padding: 3rem 1.5rem;
+  text-align: center;
+  
+  &__icon {
+    width: 64px;
+    height: 64px;
+    border-radius: 50%;
+    background: rgba(255, 255, 255, 0.05);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.5rem;
+    
+    svg {
+      color: rgba(255, 255, 255, 0.3);
+    }
+  }
+  
+  &__title {
+    font-size: 1.25rem;
+    color: rgba(255, 255, 255, 0.9);
+    margin-bottom: 0.5rem;
+  }
+  
+  &__message {
+    color: rgba(255, 255, 255, 0.5);
+    max-width: 300px;
+    margin: 0 auto;
+    line-height: 1.5;
+  }
+}
+
+.requests-loading {
+  &__spinner {
+    width: 40px;
+    height: 40px;
+    border: 3px solid rgba(255, 255, 255, 0.1);
+    border-top-color: $primary-color;
+    border-radius: 50%;
+    margin: 0 auto 1.5rem;
+    animation: spin 1s linear infinite;
+  }
+  
+  &__text {
+    color: rgba(255, 255, 255, 0.7);
+  }
+}
+
+// Request Form
+.request-form {
+  background: $background-card;
+  border-radius: 16px;
+  border: 1px solid $border-color;
+  overflow: hidden;
+  animation: fadeIn 0.6s ease-out;
+  transition: transform $animation-duration, box-shadow $animation-duration;
+  
+  &:hover {
+    box-shadow: 0 5px 20px rgba(0, 0, 0, 0.2);
+  }
+  
+  &__header {
+    padding: 1.5rem;
+    border-bottom: 1px solid $border-color;
+  }
+  
+  &__title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 0.5rem;
+  }
+  
+  &__subtitle {
+    color: rgba(255, 255, 255, 0.6);
+    font-size: 0.95rem;
+    line-height: 1.6;
+  }
+  
+  &__content {
+    padding: 1.5rem;
+    display: flex;
+    flex-direction: column;
+    gap: 1.25rem;
+  }
+  
+  &__submit {
+    background: linear-gradient(90deg, $primary-color, $secondary-color);
+    color: white;
+    border: none;
+    border-radius: 12px;
+    padding: 1rem;
+    font-weight: 600;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.75rem;
+    cursor: pointer;
+    transition: all $animation-duration;
+    margin-top: 1rem;
+    
+    &:hover:not(:disabled) {
+      transform: translateY(-2px);
+      box-shadow: 0 5px 15px rgba($primary-color, 0.4);
+    }
+    
+    &:active:not(:disabled) {
+      transform: translateY(0);
+    }
+    
+    &:disabled {
+      opacity: 0.7;
+      cursor: not-allowed;
+    }
+  }
+}
+
+// Form Elements
+.form-group {
+  width: 100%;
+}
+
+.form-row {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 1rem;
+  
+  @media (min-width: 640px) {
+    grid-template-columns: 1fr 1fr;
+  }
+}
+
+.form-label {
+  display: block;
+  margin-bottom: 0.5rem;
+  color: rgba(255, 255, 255, 0.8);
+  font-weight: 500;
+  font-size: 0.95rem;
+}
+
+.form-input-wrapper {
+  position: relative;
+  
+  .form-input-icon {
+    position: absolute;
+    left: 1rem;
+    top: 50%;
+    transform: translateY(-50%);
+    width: 1rem;
+    height: 1rem;
+    color: rgba(255, 255, 255, 0.4);
+    pointer-events: none;
+  }
+}
+
+.form-input,
+.form-textarea {
+  width: 100%;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  color: white;
+  transition: all $animation-duration;
+  
+  &:focus {
+    outline: none;
+    background: rgba(255, 255, 255, 0.08);
+    border-color: rgba($primary-color, 0.5);
+    box-shadow: 0 0 0 2px rgba($primary-color, 0.2);
+  }
+  
+  &--error {
+    border-color: rgba($danger-color, 0.5) !important;
+    
+    &:focus {
+      box-shadow: 0 0 0 2px rgba($danger-color, 0.2) !important;
+    }
+  }
+  
+  &::placeholder {
+    color: rgba(255, 255, 255, 0.3);
+  }
+}
+
+.form-input {
+  height: 48px;
+  padding: 0 1rem 0 2.75rem;
+}
+
+.form-textarea {
+  padding: 1rem;
+  min-height: 120px;
+  resize: none;
+  font-family: inherit;
+  line-height: 1.6;
+}
+
+.form-error {
+  color: $danger-color;
+  font-size: 0.85rem;
+  margin-top: 0.5rem;
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  
+  &::before {
+    content: "!";
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 16px;
+    height: 16px;
+    background: rgba($danger-color, 0.2);
+    border-radius: 50%;
+    font-size: 0.75rem;
+    font-weight: bold;
+  }
+}
+
+// Request Type Selector
+.request-type-selector {
+  display: grid;
+  grid-template-columns: 1fr;
+  gap: 0.75rem;
+  
+  @media (min-width: 640px) {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.request-type-option {
+  padding: 1rem 0.75rem;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(255, 255, 255, 0.1);
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.5rem;
+  cursor: pointer;
+  transition: all $animation-duration;
+  
+  svg {
+    color: rgba(255, 255, 255, 0.6);
+    transition: all $animation-duration;
+  }
+  
+  span {
+    font-size: 0.9rem;
+    color: rgba(255, 255, 255, 0.7);
+    transition: all $animation-duration;
+  }
+  
+  &:hover:not(.request-type-option--active) {
+    background: rgba(255, 255, 255, 0.08);
+    transform: translateY(-2px);
+  }
+  
+  &--active {
+    background: rgba($primary-color, 0.1);
+    border-color: rgba($primary-color, 0.4);
+    
+    svg {
+      color: $primary-color;
+    }
+    
+    span {
+      color: white;
+      font-weight: 600;
+    }
+  }
+}
+
+// Spinner animation
+.spinner {
+  width: 20px;
+  height: 20px;
+  border: 2px solid rgba(255, 255, 255, 0.3);
+  border-top-color: white;
+  border-radius: 50%;
+  animation: spin 0.8s linear infinite;
+}
+
+// Request Modal
+.request-modal {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow-y: auto;
+  padding: 1rem;
+  animation: fadeIn 0.3s ease-out;
+  
+  &__overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.7);
+    backdrop-filter: blur(4px);
+    animation: fadeIn 0.3s ease-out;
+  }
+  
+  &__container {
+    position: relative;
+    z-index: 1;
+    width: 100%;
+    max-width: 650px;
+    background: $background-card;
+    border-radius: 16px;
+    border: 1px solid $border-color;
+    box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.5);
+    overflow: hidden;
+    animation: zoomIn 0.3s ease-out;
+  }
+  
+  &__header {
+    padding: 1.25rem 1.5rem;
+    border-bottom: 1px solid $border-color;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+  
+  &__title {
+    font-size: 1.25rem;
+    font-weight: 700;
+    color: white;
+  }
+  
+  &__close {
+    background: transparent;
+    border: none;
+    color: rgba(255, 255, 255, 0.6);
+    cursor: pointer;
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    transition: all $animation-duration;
+    
+    &:hover {
+      background: rgba(255, 255, 255, 0.1);
+      color: white;
+    }
+  }
+  
+  &__content {
+    padding: 1.5rem;
+    max-height: 70vh;
+    overflow-y: auto;
+  }
+  
+  &__info {
+    margin-bottom: 2rem;
+  }
+  
+  &__status {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1rem;
+  }
+  
+  &__date {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  &__movie-title {
+    font-size: 1.5rem;
+    font-weight: 700;
+    color: white;
+    margin-bottom: 1rem;
+  }
+  
+  &__details {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+  }
+  
+  &__detail {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+    padding: 0.35rem 0.75rem;
+    background: rgba(255, 255, 255, 0.05);
+    border-radius: 8px;
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.8);
+  }
+  
+  &__subject,
+  &__message {
+    margin-bottom: 1.5rem;
+    
+    h4 {
+      font-size: 0.9rem;
+      font-weight: 600;
+      color: rgba(255, 255, 255, 0.7);
+      margin-bottom: 0.5rem;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+    
+    p {
+      color: white;
+      line-height: 1.7;
+      white-space: pre-line;
+    }
+  }
+}
+
+// Admin Response
+.admin-response {
+  background: rgba(0, 0, 0, 0.2);
+  border-radius: 12px;
+  padding: 1.5rem;
+  border-left: 3px solid $info-color;
+  
+  &__header {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1rem;
+  }
+  
+  &__avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 50%;
+    overflow: hidden;
+    border: 2px solid rgba($info-color, 0.3);
+  }
+  
+  &__info {
+    flex: 1;
+  }
+  
+  &__title {
+    font-weight: 600;
+    color: white;
+    margin-bottom: 0.25rem;
+  }
+  
+  &__date {
+    font-size: 0.85rem;
+    color: rgba(255, 255, 255, 0.5);
+  }
+  
+  &__content {
+    color: rgba(255, 255, 255, 0.9);
+    line-height: 1.7;
+    white-space: pre-line;
+  }
+  
+  // Pending Admin Response
+  &--pending {
+    border-left-color: $warning-color;
+    text-align: center;
+    padding: 2rem 1.5rem;
+  }
+  
+  &__pending-icon {
+    width: 60px;
+    height: 60px;
+    border-radius: 50%;
+    background: rgba($warning-color, 0.1);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    margin: 0 auto 1.25rem;
+    
+    svg {
+      color: $warning-color;
+    }
+  }
+  
+  &__pending-title {
+    font-size: 1.1rem;
+    font-weight: 600;
+    color: white;
+    margin-bottom: 0.75rem;
+  }
+  
+  &__pending-text {
+    color: rgba(255, 255, 255, 0.7);
+    max-width: 300px;
+    margin: 0 auto;
+    line-height: 1.6;
+  }
+}
+
+// Animations
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+
+@keyframes fadeInUp {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes slideInDown {
+  from {
+    opacity: 0;
+    transform: translateY(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+@keyframes zoomIn {
+  from {
+    opacity: 0;
+    transform: scale(0.95);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes spin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes pulse {
+  0% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba($primary-color, 0.7);
+  }
+  
+  70% {
+    transform: scale(1);
+    box-shadow: 0 0 0 10px rgba($primary-color, 0);
+  }
+  
+  100% {
+    transform: scale(0.95);
+    box-shadow: 0 0 0 0 rgba($primary-color, 0);
+  }
+}

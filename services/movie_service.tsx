@@ -984,6 +984,224 @@ class MovieService {
       throw error;
     }
   }
+  // Get user requests
+async getUserRequests(): Promise<any[]> {
+  if (!this.isInitialized) {
+    await this.initialize();
+  }
+  
+  // Check authentication
+  if (!this.isAuthenticated() || !this.userId) {
+    return [];
+  }
+  
+  try {
+    const response = await this.databases.listDocuments(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      [
+        Query.equal('user_id', this.userId),
+        Query.orderDesc('$createdAt'),
+        Query.limit(100)
+      ]
+    );
+    
+    return response.documents;
+  } catch (error) {
+    console.error('Error fetching user requests:', error);
+    return [];
+  }
+}
+
+// Create a new movie request
+async createMovieRequest(requestData: {
+  movie_title: string;
+  movie_year: string;
+  movie_genre: string;
+  content: string;
+  subject: string;
+  message_type: string;
+}): Promise<any> {
+  if (!this.isInitialized) {
+    await this.initialize();
+  }
+  
+  // Check authentication
+  if (!this.isAuthenticated() || !this.userId) {
+    throw new Error('User must be logged in to create a request');
+  }
+  
+  const currentUser = this.getCurrentUser();
+  
+  if (!currentUser) {
+    throw new Error('User not found');
+  }
+  
+  try {
+    const newRequest = await this.databases.createDocument(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      ID.unique(),
+      {
+        user_id: this.userId,
+        user_name: currentUser.name || 'Anonymous User',
+        user_email: currentUser.email,
+        message_type: requestData.message_type,
+        priority: 'normal',
+        status: 'new',
+        is_read: false,
+        movie_title: requestData.movie_title,
+        movie_year: requestData.movie_year,
+        movie_genre: requestData.movie_genre,
+        content: requestData.content,
+        subject: requestData.subject,
+        admin_response: null,
+        admin_response_at: null
+      }
+    );
+    
+    return newRequest;
+  } catch (error) {
+    console.error('Error creating movie request:', error);
+    throw error;
+  }
+}
+
+// Mark a request as read
+async markRequestAsRead(requestId: string): Promise<boolean> {
+  if (!this.isInitialized) {
+    await this.initialize();
+  }
+  
+  // Check authentication
+  if (!this.isAuthenticated() || !this.userId) {
+    return false;
+  }
+  
+  try {
+    // First verify this request belongs to the user
+    const request = await this.databases.getDocument(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      requestId
+    );
+    
+    if (request.user_id !== this.userId) {
+      console.error('Request does not belong to this user');
+      return false;
+    }
+    
+    // Update the document
+    await this.databases.updateDocument(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      requestId,
+      {
+        is_read: true
+      }
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error marking request as read:', error);
+    return false;
+  }
+}
+
+// Update an existing request
+async updateRequest(requestId: string, updateData: {
+  movie_title?: string;
+  movie_year?: string;
+  movie_genre?: string;
+  content?: string;
+  subject?: string;
+}): Promise<boolean> {
+  if (!this.isInitialized) {
+    await this.initialize();
+  }
+  
+  // Check authentication
+  if (!this.isAuthenticated() || !this.userId) {
+    return false;
+  }
+  
+  try {
+    // First verify this request belongs to the user
+    const request = await this.databases.getDocument(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      requestId
+    );
+    
+    if (request.user_id !== this.userId) {
+      console.error('Request does not belong to this user');
+      return false;
+    }
+    
+    // Only allow updates if the request is still new
+    if (request.status !== 'new') {
+      console.error('Cannot update a request that is already being processed');
+      return false;
+    }
+    
+    // Update the document
+    await this.databases.updateDocument(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      requestId,
+      updateData
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error updating request:', error);
+    return false;
+  }
+}
+
+// Delete a request
+async deleteRequest(requestId: string): Promise<boolean> {
+  if (!this.isInitialized) {
+    await this.initialize();
+  }
+  
+  // Check authentication
+  if (!this.isAuthenticated() || !this.userId) {
+    return false;
+  }
+  
+  try {
+    // First verify this request belongs to the user
+    const request = await this.databases.getDocument(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      requestId
+    );
+    
+    if (request.user_id !== this.userId) {
+      console.error('Request does not belong to this user');
+      return false;
+    }
+    
+    // Only allow deletion if the request is still new
+    if (request.status !== 'new') {
+      console.error('Cannot delete a request that is already being processed');
+      return false;
+    }
+    
+    // Delete the document
+    await this.databases.deleteDocument(
+      process.env.NEXT_PUBLIC_DATABASE_ID!,
+      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+      requestId
+    );
+    
+    return true;
+  } catch (error) {
+    console.error('Error deleting request:', error);
+    return false;
+  }
+}
 
   // Update movie watching progress
   async updateWatchingProgress(movieId: string, progress: number): Promise<boolean> {

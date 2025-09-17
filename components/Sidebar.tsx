@@ -9,7 +9,9 @@ import type { AuthState } from '@/services/auth_service';
 import { 
   Home, Film, Compass, Library, User, 
   LogOut, Menu, X, Search, Play,
-  Heart
+  Heart,
+  FileQuestion,
+  Videotape
 } from 'lucide-react';
 import '@/styles/Sidebar.scss';
 
@@ -74,7 +76,7 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
     { path: '/movies', name: 'Movies', icon: <Film /> },
     { path: '/discover', name: 'Discover', icon: <Compass /> },
     { path: '/library', name: 'Library', icon: <Library /> },
-    { path: '/watchlist', name: 'Watchlist', icon: <Heart /> },
+    { path: '/request', name: 'Request Movie', icon: <Videotape /> },
   ];
 
   const { user } = authState;
