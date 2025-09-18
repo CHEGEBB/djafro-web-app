@@ -14,6 +14,7 @@ import {
   Videotape
 } from 'lucide-react';
 import '@/styles/Sidebar.scss';
+import Image from 'next/image';
 
 interface SidebarProps {
   isMobile: boolean;
@@ -105,7 +106,13 @@ const Sidebar: React.FC<SidebarProps> = ({ isMobile, isOpen, onToggle }) => {
       <div className={`sidebar ${isOpen ? 'sidebar--open' : 'sidebar--closed'}`}>
         <div className="sidebar__header">
           <Link href="/" className="sidebar__logo" onClick={isMobile ? onToggle : undefined}>
-            <Play className="sidebar__logo-icon" size={18} />
+            <Image
+                  src="/assets/logo.png"
+                  alt="DJ Afro Movies Logo"
+                  width={30}
+                  height={30}
+                  className="object-contain"
+                  />
             <span className="sidebar__logo-text">
               DJ Afro<span className="sidebar__logo-accent">Movies</span>
             </span>
