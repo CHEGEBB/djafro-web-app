@@ -232,7 +232,13 @@ export default function AuthPage() {
         <div className="text-center">
           <div className="relative">
             <div className="w-20 h-20 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center mb-6 mx-auto shadow-2xl">
-              <Film className="text-white animate-pulse" size={40} />
+            <Image
+                  src="/assets/logo.png"
+                  alt="DJ Afro Movies Logo"
+                  width={60}
+                  height={60}
+                  className="object-contain"
+                  />
             </div>
             <div className="absolute -inset-4 bg-gradient-to-r from-red-500/20 to-red-700/20 rounded-full blur-xl animate-pulse"></div>
           </div>
@@ -275,7 +281,13 @@ export default function AuthPage() {
         <div className="absolute top-8 left-8 z-10">
           <div className="flex items-center space-x-3">
             <div className="w-12 h-12 bg-gradient-to-br from-red-500 to-red-700 rounded-full flex items-center justify-center shadow-lg">
-              <Film className="text-white" size={24} />
+            <Image
+            src="/assets/logo.png"
+            alt="DJ Afro Movies Logo"
+            width={70}
+            height={70}
+            className="object-contain"
+            />
             </div>
             <h1 className="text-2xl font-bold text-white">DJ Afro Movies</h1>
           </div>

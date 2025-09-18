@@ -459,7 +459,13 @@ export default function DjAfroMovies() {
             <div className="flex items-center space-x-8">
               <div className="flex items-center space-x-2">
                 <div className="w-10 h-10 bg-red-600 rounded flex items-center justify-center">
-                  <Film className="text-white" size={24} />
+                <Image
+                  src="/assets/logo.png"
+                  alt="DJ Afro Movies Logo"
+                  width={60}
+                  height={60}
+                  className="object-contain"
+                  />
                 </div>
                 <span className="text-2xl font-bold text-white">
                   DJ Afro Movies
@@ -1229,7 +1235,13 @@ export default function DjAfroMovies() {
             <div>
               <div className="flex items-center space-x-2 mb-6">
                 <div className="w-10 h-10 bg-red-600 rounded-lg flex items-center justify-center">
-                  <Film className="text-white" size={24} />
+                <Image
+                  src="/assets/logo.png"
+                  alt="DJ Afro Movies Logo"
+                  width={60}
+                  height={60}
+                  className="object-contain"
+                  />
                 </div>
                 <span className="text-2xl font-bold text-white">
                   DJ Afro Movies
