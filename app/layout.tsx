@@ -43,7 +43,7 @@ export default function RootLayout({
           strategy="afterInteractive"
         />
 
-        {/* ✅ SmartLink Redirect (opens when user visits site) */}
+        {/* ✅ SmartLink */}
         <Script
           id="smartlink"
           src="https://www.revenuecpmgate.com/d9sm3jmc12?key=d5721fb7c23794879de52775b8db04bf"
@@ -65,12 +65,59 @@ export default function RootLayout({
             {children}
 
             {/* ✅ Native Banner Placement */}
-            <div id="container-e921527a646b49b8bddbe30f8c16d338"></div>
+            <div
+              id="container-e921527a646b49b8bddbe30f8c16d338"
+              style={{ margin: "20px 0" }}
+            ></div>
             <Script
               id="adsterra-native"
               src="//pl27677477.revenuecpmgate.com/e921527a646b49b8bddbe30f8c16d338/invoke.js"
               strategy="afterInteractive"
             />
+
+            {/* ✅ Small 160x300 Banner */}
+            <div id="adsterra-small-banner" style={{ margin: "20px auto" }}>
+              <script
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    atOptions = {
+                      'key': 'aabd7cf1d8796d87ade4c3d7a909ec84',
+                      'format': 'iframe',
+                      'height': 300,
+                      'width': 160,
+                      'params': {}
+                    };
+                  `,
+                }}
+              />
+              <Script
+                id="adsterra-small-banner-script"
+                src="//www.highperformanceformat.com/aabd7cf1d8796d87ade4c3d7a909ec84/invoke.js"
+                strategy="afterInteractive"
+              />
+            </div>
+
+            {/* ✅ Tall 160x600 Banner */}
+            <div id="adsterra-tall-banner" style={{ margin: "20px auto" }}>
+              <script
+                dangerouslySetInnerHTML={{
+                  __html: `
+                    atOptions = {
+                      'key': '24ace108dd8f7e91700d74f10072700a',
+                      'format': 'iframe',
+                      'height': 600,
+                      'width': 160,
+                      'params': {}
+                    };
+                  `,
+                }}
+              />
+              <Script
+                id="adsterra-tall-banner-script"
+                src="//www.highperformanceformat.com/24ace108dd8f7e91700d74f10072700a/invoke.js"
+                strategy="afterInteractive"
+              />
+            </div>
           </MovieServiceProvider>
         </ThemeProvider>
       </body>
