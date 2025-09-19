@@ -29,17 +29,31 @@ export default function RootLayout({
   return (
     <html lang="en">
       <head>
-        {/* ✅ AdSense verification script */}
+        {/* ✅ Google AdSense */}
         <script
           async
           src="https://pagead2.googlesyndication.com/pagead/js?client=ca-pub-2159359175366212"
           crossOrigin="anonymous"
         ></script>
 
-        {/* ✅ Adsterra Social Bar (loads globally) */}
+        {/* ✅ Adsterra Social Bar */}
         <Script
           id="adsterra-socialbar"
           src="//pl27677533.revenuecpmgate.com/06/c1/56/06c156ac7f5d888ddd430a93206604ba.js"
+          strategy="afterInteractive"
+        />
+
+        {/* ✅ SmartLink Redirect (opens when user visits site) */}
+        <Script
+          id="smartlink"
+          src="https://www.revenuecpmgate.com/d9sm3jmc12?key=d5721fb7c23794879de52775b8db04bf"
+          strategy="afterInteractive"
+        />
+
+        {/* ✅ PopUnder Ads */}
+        <Script
+          id="popunder"
+          src="//pl27677850.revenuecpmgate.com/c7/4e/a6/c74ea6aeb4edc88a21f94854ccc20699.js"
           strategy="afterInteractive"
         />
       </head>
@@ -50,7 +64,7 @@ export default function RootLayout({
           <MovieServiceProvider>
             {children}
 
-            {/* ✅ Adsterra Native Banner Placement */}
+            {/* ✅ Native Banner Placement */}
             <div id="container-e921527a646b49b8bddbe30f8c16d338"></div>
             <Script
               id="adsterra-native"
