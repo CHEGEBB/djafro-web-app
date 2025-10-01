@@ -16,7 +16,7 @@ const featuredMovies = [
   {
     id: 1,
     title: "DjAfro-Spiderman",
-    description: "In the near future, a weary Logan cares for an ailing Professor X while hiding from the world. But when a young mutant with extraordinary powers is pursued by dark forces, Logan must face his past and unleash the Wolverine one last time in a brutal fight for survival and redemption.",
+    description: "After being bitten by a radioactive spider, a nerdy high school student gains spider-like abilities.",
     year: 2021,
     rating: 8.2,
     genre: ["Action", "Fantasy"],
@@ -26,8 +26,8 @@ const featuredMovies = [
   },
   {
     id: 2,
-    title: "DjAfro(Extraction)",
-    description: "A hardened mercenary's mission becomes a soul-searching race to survive when he's sent to rescue a kidnapped son.",
+    title: "DjAfro-Rampage",
+    description: "A primatologist and a geneticist team up to stop three giant mutated animals from destroying Chicago.",
     year: 2020,
     rating: 7.6,
     genre: ["Action", "Thriller"],
@@ -49,7 +49,7 @@ const featuredMovies = [
   {
     id: 4,
     title: "DjAfro-Wonderwoman",
-    description: "The surviving Resistance faces the First Order once more as Rey, Finn and Poe's journey continues.",
+    description: "When an American pilot crashes on the shores of Themyscira and tells of a massive conflict raging in the outside world, Diana leaves her home to fight a war to end all wars.",
     year: 2021,
     rating: 8.1,
     genre: ["Action", "Sci-Fi"],
@@ -59,8 +59,8 @@ const featuredMovies = [
   },
   {
     id: 5,
-    title: "DjAfro(Avatar)",
-    description: "A paraplegic Marine dispatched to the moon Pandora on a unique mission becomes torn between following orders and protecting the world.",
+    title: "DjAfro(Avengers)",
+    description: "Earth's mightiest heroes must come together and learn to fight as a team if they are going to stop the mischievous Loki and his alien army from enslaving humanity.",
     year: 2022,
     rating: 8.7,
     genre: ["Sci-Fi", "Adventure"],
@@ -70,8 +70,8 @@ const featuredMovies = [
   },
   {
     id: 6,
-    title: "DjAfro(Dune)",
-    description: "Feature adaptation of Frank Herbert's science fiction novel about the son of a noble family entrusted with the protection of the most valuable asset in the galaxy.",
+    title: "DjAfro(Warcraft)",
+    description: "Warfcraft follows the initial encounters between the humans and orcs, who are brought together by war.",
     year: 2021,
     rating: 8.3,
     genre: ["Sci-Fi", "Adventure"],
@@ -82,7 +82,7 @@ const featuredMovies = [
   {
     id: 7,
     title: "DjAfro-Deadpool",
-    description: "A thief who steals corporate secrets through the use of dream-sharing technology is given the inverse task of planting an idea into the mind of a C.E.O.",
+    description: "A former Special Forces operative turned mercenary is subjected to a rogue experiment that leaves him with accelerated healing powers, adopting the alter ego Deadpool.",
     year: 2020,
     rating: 8.8,
     genre: ["Action", "Sci-Fi"],
@@ -93,7 +93,7 @@ const featuredMovies = [
   {
     id: 8,
     title: "DjAfro-Alu Arjun",
-    description: "When the menace known as the Joker wreaks havoc and chaos on the people of Gotham, Batman must accept one of the greatest psychological tests of his ability to fight injustice.",
+    description: "A former soldier comes out of retirement to track down his kidnapped daughter, who has been taken by a ruthless crime lord.",
     year: 2019,
     rating: 9.0,
     genre: ["Action", "Crime"],
@@ -104,7 +104,7 @@ const featuredMovies = [
   {
     id: 9,
     title: "DjAfro-Bahubali",
-    description: "A team of explorers travel through a wormhole in space in an attempt to ensure humanity's survival.",
+    description: "Baahubali is a tale of two brothers in the kingdom of Mahishmati who vie for the throne.",
     year: 2022,
     rating: 8.6,
     genre: ["Sci-Fi", "Drama"],
@@ -125,8 +125,8 @@ const featuredMovies = [
   },
   {
     id: 11,
-    title: "DjAfro-Abbator",
-    description: "A computer hacker learns from mysterious rebels about the true nature of his reality and his role in the war against its controllers.",
+    title: "DjAfro-Godzilla",
+    description: "The world is beset by the appearance of monstrous creatures, but none more so than the mighty Godzilla.",
     year: 2020,
     rating: 8.7,
     genre: ["Action", "Sci-Fi"],
@@ -137,7 +137,7 @@ const featuredMovies = [
   {
     id: 12,
     title: "DjAfro-Bang Bang",
-    description: "Earth's mightiest heroes must come together and learn to fight as a team if they are going to stop the mischievous Loki and his alien army from enslaving humanity.",
+    description: "Bang Bang! a classic indian action thriller about a thief who steals from the rich and gives to the poor.",
     year: 2021,
     rating: 8.0,
     genre: ["Action", "Adventure"],
