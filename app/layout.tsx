@@ -5,6 +5,7 @@ import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { MovieServiceProvider } from "@/services/movie_service";
 import Script from "next/script"; // ✅ Import Script
+import { PaymentServiceProvider } from "@/services/payment_service";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -42,10 +43,12 @@ export default function RootLayout({
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
+        <PaymentServiceProvider>
           <MovieServiceProvider>
             {children}
 
           </MovieServiceProvider>
+          </PaymentServiceProvider>
         </ThemeProvider>
       </body>
     </html>

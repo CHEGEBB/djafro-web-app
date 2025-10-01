@@ -4,6 +4,7 @@
 import { Client, Databases, ID, Query, Models } from 'appwrite';
 import { createContext, useContext, useEffect, useState, ReactNode } from 'react';
 import { authService, AuthState, AuthUser } from './auth_service';
+import { usePaymentService } from './payment_service';
 
 // Define types
 export type Movie = {
@@ -28,6 +29,8 @@ export type Movie = {
   isWishlisted?: boolean;
   isFeatured?: boolean;
   isTrending?: boolean;
+  isPaid?: boolean;
+  paymentStatus?: 'free' | 'premium' | 'paid';
 };
 
 // Video source types
@@ -986,224 +989,225 @@ class MovieService {
       throw error;
     }
   }
+
   // Get user requests
-async getUserRequests(): Promise<any[]> {
-  if (!this.isInitialized) {
-    await this.initialize();
-  }
-  
-  // Check authentication
-  if (!this.isAuthenticated() || !this.userId) {
-    return [];
-  }
-  
-  try {
-    const response = await this.databases.listDocuments(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      [
-        Query.equal('user_id', this.userId),
-        Query.orderDesc('$createdAt'),
-        Query.limit(100)
-      ]
-    );
+  async getUserRequests(): Promise<any[]> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
     
-    return response.documents;
-  } catch (error) {
-    console.error('Error fetching user requests:', error);
-    return [];
+    // Check authentication
+    if (!this.isAuthenticated() || !this.userId) {
+      return [];
+    }
+    
+    try {
+      const response = await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        [
+          Query.equal('user_id', this.userId),
+          Query.orderDesc('$createdAt'),
+          Query.limit(100)
+        ]
+      );
+      
+      return response.documents;
+    } catch (error) {
+      console.error('Error fetching user requests:', error);
+      return [];
+    }
   }
-}
 
-// Create a new movie request
-async createMovieRequest(requestData: {
-  movie_title: string;
-  movie_year: string;
-  movie_genre: string;
-  content: string;
-  subject: string;
-  message_type: string;
-}): Promise<any> {
-  if (!this.isInitialized) {
-    await this.initialize();
+  // Create a new movie request
+  async createMovieRequest(requestData: {
+    movie_title: string;
+    movie_year: string;
+    movie_genre: string;
+    content: string;
+    subject: string;
+    message_type: string;
+  }): Promise<any> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    
+    // Check authentication
+    if (!this.isAuthenticated() || !this.userId) {
+      throw new Error('User must be logged in to create a request');
+    }
+    
+    const currentUser = this.getCurrentUser();
+    
+    if (!currentUser) {
+      throw new Error('User not found');
+    }
+    
+    try {
+      const newRequest = await this.databases.createDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        ID.unique(),
+        {
+          user_id: this.userId,
+          user_name: currentUser.name || 'Anonymous User',
+          user_email: currentUser.email,
+          message_type: requestData.message_type,
+          priority: 'normal',
+          status: 'new',
+          is_read: false,
+          movie_title: requestData.movie_title,
+          movie_year: requestData.movie_year,
+          movie_genre: requestData.movie_genre,
+          content: requestData.content,
+          subject: requestData.subject,
+          admin_response: null,
+          admin_response_at: null
+        }
+      );
+      
+      return newRequest;
+    } catch (error) {
+      console.error('Error creating movie request:', error);
+      throw error;
+    }
   }
-  
-  // Check authentication
-  if (!this.isAuthenticated() || !this.userId) {
-    throw new Error('User must be logged in to create a request');
-  }
-  
-  const currentUser = this.getCurrentUser();
-  
-  if (!currentUser) {
-    throw new Error('User not found');
-  }
-  
-  try {
-    const newRequest = await this.databases.createDocument(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      ID.unique(),
-      {
-        user_id: this.userId,
-        user_name: currentUser.name || 'Anonymous User',
-        user_email: currentUser.email,
-        message_type: requestData.message_type,
-        priority: 'normal',
-        status: 'new',
-        is_read: false,
-        movie_title: requestData.movie_title,
-        movie_year: requestData.movie_year,
-        movie_genre: requestData.movie_genre,
-        content: requestData.content,
-        subject: requestData.subject,
-        admin_response: null,
-        admin_response_at: null
+
+  // Mark a request as read
+  async markRequestAsRead(requestId: string): Promise<boolean> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    
+    // Check authentication
+    if (!this.isAuthenticated() || !this.userId) {
+      return false;
+    }
+    
+    try {
+      // First verify this request belongs to the user
+      const request = await this.databases.getDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        requestId
+      );
+      
+      if (request.user_id !== this.userId) {
+        console.error('Request does not belong to this user');
+        return false;
       }
-    );
-    
-    return newRequest;
-  } catch (error) {
-    console.error('Error creating movie request:', error);
-    throw error;
+      
+      // Update the document
+      await this.databases.updateDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        requestId,
+        {
+          is_read: true
+        }
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Error marking request as read:', error);
+      return false;
+    }
   }
-}
 
-// Mark a request as read
-async markRequestAsRead(requestId: string): Promise<boolean> {
-  if (!this.isInitialized) {
-    await this.initialize();
-  }
-  
-  // Check authentication
-  if (!this.isAuthenticated() || !this.userId) {
-    return false;
-  }
-  
-  try {
-    // First verify this request belongs to the user
-    const request = await this.databases.getDocument(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      requestId
-    );
+  // Update an existing request
+  async updateRequest(requestId: string, updateData: {
+    movie_title?: string;
+    movie_year?: string;
+    movie_genre?: string;
+    content?: string;
+    subject?: string;
+  }): Promise<boolean> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
     
-    if (request.user_id !== this.userId) {
-      console.error('Request does not belong to this user');
+    // Check authentication
+    if (!this.isAuthenticated() || !this.userId) {
       return false;
     }
     
-    // Update the document
-    await this.databases.updateDocument(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      requestId,
-      {
-        is_read: true
+    try {
+      // First verify this request belongs to the user
+      const request = await this.databases.getDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        requestId
+      );
+      
+      if (request.user_id !== this.userId) {
+        console.error('Request does not belong to this user');
+        return false;
       }
-    );
-    
-    return true;
-  } catch (error) {
-    console.error('Error marking request as read:', error);
-    return false;
+      
+      // Only allow updates if the request is still new
+      if (request.status !== 'new') {
+        console.error('Cannot update a request that is already being processed');
+        return false;
+      }
+      
+      // Update the document
+      await this.databases.updateDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        requestId,
+        updateData
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Error updating request:', error);
+      return false;
+    }
   }
-}
 
-// Update an existing request
-async updateRequest(requestId: string, updateData: {
-  movie_title?: string;
-  movie_year?: string;
-  movie_genre?: string;
-  content?: string;
-  subject?: string;
-}): Promise<boolean> {
-  if (!this.isInitialized) {
-    await this.initialize();
-  }
-  
-  // Check authentication
-  if (!this.isAuthenticated() || !this.userId) {
-    return false;
-  }
-  
-  try {
-    // First verify this request belongs to the user
-    const request = await this.databases.getDocument(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      requestId
-    );
+  // Delete a request
+  async deleteRequest(requestId: string): Promise<boolean> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
     
-    if (request.user_id !== this.userId) {
-      console.error('Request does not belong to this user');
+    // Check authentication
+    if (!this.isAuthenticated() || !this.userId) {
       return false;
     }
     
-    // Only allow updates if the request is still new
-    if (request.status !== 'new') {
-      console.error('Cannot update a request that is already being processed');
+    try {
+      // First verify this request belongs to the user
+      const request = await this.databases.getDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        requestId
+      );
+      
+      if (request.user_id !== this.userId) {
+        console.error('Request does not belong to this user');
+        return false;
+      }
+      
+      // Only allow deletion if the request is still new
+      if (request.status !== 'new') {
+        console.error('Cannot delete a request that is already being processed');
+        return false;
+      }
+      
+      // Delete the document
+      await this.databases.deleteDocument(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
+        requestId
+      );
+      
+      return true;
+    } catch (error) {
+      console.error('Error deleting request:', error);
       return false;
     }
-    
-    // Update the document
-    await this.databases.updateDocument(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      requestId,
-      updateData
-    );
-    
-    return true;
-  } catch (error) {
-    console.error('Error updating request:', error);
-    return false;
   }
-}
-
-// Delete a request
-async deleteRequest(requestId: string): Promise<boolean> {
-  if (!this.isInitialized) {
-    await this.initialize();
-  }
-  
-  // Check authentication
-  if (!this.isAuthenticated() || !this.userId) {
-    return false;
-  }
-  
-  try {
-    // First verify this request belongs to the user
-    const request = await this.databases.getDocument(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      requestId
-    );
-    
-    if (request.user_id !== this.userId) {
-      console.error('Request does not belong to this user');
-      return false;
-    }
-    
-    // Only allow deletion if the request is still new
-    if (request.status !== 'new') {
-      console.error('Cannot delete a request that is already being processed');
-      return false;
-    }
-    
-    // Delete the document
-    await this.databases.deleteDocument(
-      process.env.NEXT_PUBLIC_DATABASE_ID!,
-      process.env.NEXT_PUBLIC_USER_REQUESTS_COLLETCION_ID!,
-      requestId
-    );
-    
-    return true;
-  } catch (error) {
-    console.error('Error deleting request:', error);
-    return false;
-  }
-}
 
   // Update movie watching progress
   async updateWatchingProgress(movieId: string, progress: number): Promise<boolean> {
@@ -1269,6 +1273,84 @@ async deleteRequest(requestId: string): Promise<boolean> {
     }
   }
 
+  // Check if user can access premium movie
+  async canAccessPremiumMovie(movieId: string): Promise<boolean> {
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    
+    try {
+      // Get movie details to check if it's premium
+      const movie = await this.getMovieById(movieId);
+      
+      // If movie is not found or not premium, no payment check needed
+      if (!movie || !movie.isPremium) {
+        return true;
+      }
+      
+      // If user is not logged in, they can't access premium content
+      if (!this.userId) {
+        return false;
+      }
+      
+      // Check if user has paid for this premium movie
+      const paymentService = (window as any).__paymentService;
+      if (paymentService) {
+        const hasPaid = await paymentService.hasUserPaidForMovie(this.userId, movieId);
+        return hasPaid;
+      }
+      
+      return false;
+    } catch (error) {
+      console.error('Error checking premium access:', error);
+      return false;
+    }
+  }
+
+  // Get premium movies
+  async getPremiumMovies(): Promise<Movie[]> {
+    const cacheKey = 'premium_movies';
+    
+    // Check cache first
+    if (this.movieListCache[cacheKey]) {
+      const expiry = this.cacheExpiry[cacheKey];
+      if (expiry && expiry > new Date()) {
+        return [...this.movieListCache[cacheKey]];
+      }
+    }
+    
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+
+    try {
+      const response = await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_MOVIES_COLLECTION_ID!,
+        [
+          Query.equal('premium_only', true),
+          Query.limit(20)
+        ]
+      );
+
+      let result = await this.processMovieDocumentsAsync(response.documents);
+      
+      // If user is logged in, fetch and merge wishlist/progress/payment information
+      if (this.userId) {
+        result = await this.enhanceMoviesWithUserData(result);
+      }
+      
+      // Cache the result
+      this.movieListCache[cacheKey] = result;
+      this.cacheExpiry[cacheKey] = new Date(Date.now() + this.CACHE_DURATION);
+      
+      return result;
+    } catch (error) {
+      console.error('Error fetching premium movies:', error);
+      return [];
+    }
+  }
+
   // Process movie documents from Appwrite with async video URL formatting
   private async processMovieDocumentsAsync(documents: any[]): Promise<Movie[]> {
     const processMoviePromises = documents.map(async (doc) => {
@@ -1290,6 +1372,10 @@ async deleteRequest(requestId: string): Promise<boolean> {
       const formattedVideoUrls = await this.formatVideoUrls(rawVideoUrl);
       const streamingHeaders = this.getStreamingHeaders(rawVideoUrl);
       
+      // Set payment status based on premium flag
+      const isPremium = doc.premium_only || false;
+      const paymentStatus = isPremium ? 'premium' : 'free';
+      
       return {
         id: doc.$id,
         title: doc.title || 'Untitled Movie',
@@ -1299,7 +1385,7 @@ async deleteRequest(requestId: string): Promise<boolean> {
         year: doc.release_year?.toString() || new Date().getFullYear().toString(),
         duration: doc.duration || '2h 0m',
         genres,
-        isPremium: doc.premium_only || false,
+        isPremium,
         videoUrl: rawVideoUrl,
         videoUrls: formattedVideoUrls,
         streamingHeaders,
@@ -1311,6 +1397,8 @@ async deleteRequest(requestId: string): Promise<boolean> {
         progress: 0,
         userRating: 0,
         isWishlisted: false,
+        isPaid: false, // Will be updated in enhanceMoviesWithUserData if applicable
+        paymentStatus: paymentStatus as "free" | "premium" | "paid" | undefined, // Will be updated in enhanceMoviesWithUserData if applicable
         $createdAt: doc.$createdAt || null // Add this line to include $createdAt
       };
     });
@@ -1318,7 +1406,7 @@ async deleteRequest(requestId: string): Promise<boolean> {
     return await Promise.all(processMoviePromises);
   }
 
-  // Enhance movies with user data (wishlist, progress)
+  // Enhance movies with user data (wishlist, progress, payment status)
   private async enhanceMoviesWithUserData(movies: Movie[]): Promise<Movie[]> {
     if (!this.userId || movies.length === 0) {
       return movies;
@@ -1348,18 +1436,55 @@ async deleteRequest(requestId: string): Promise<boolean> {
         });
       });
       
-      // Enhance each movie with user data
+      // Check payment status for premium movies using payment service
+      const paymentService = (window as any).__paymentService;
+      const paymentPromises = [];
+      const isPaidMap = new Map<string, boolean>();
+      
+      if (paymentService) {
+        // Only check payment status for premium movies
+        const premiumMovieIds = movies
+          .filter(movie => movie.isPremium)
+          .map(movie => movie.id);
+          
+        if (premiumMovieIds.length > 0) {
+          for (const movieId of premiumMovieIds) {
+            const promise = paymentService.hasUserPaidForMovie(this.userId, movieId)
+              .then((hasPaid: boolean) => {
+                isPaidMap.set(movieId, hasPaid);
+              })
+              .catch((error: any) => {
+                console.error(`Error checking payment for movie ${movieId}:`, error);
+                isPaidMap.set(movieId, false);
+              });
+              
+            paymentPromises.push(promise);
+          }
+          
+          // Wait for all payment checks to complete
+          await Promise.all(paymentPromises);
+        }
+      }
+      
+      // Enhance each movie with user data and payment status
       return movies.map(movie => {
         const userData = movieUserData.get(movie.id);
-        if (userData) {
-          return {
-            ...movie,
-            isWishlisted: userData.isWishlisted,
-            progress: userData.progress,
-            userRating: userData.userRating
-          };
+        const isPaid = isPaidMap.get(movie.id) || false;
+        
+        // Determine payment status based on premium status and payment status
+        let paymentStatus: 'free' | 'premium' | 'paid' = 'free';
+        if (movie.isPremium) {
+          paymentStatus = isPaid ? 'paid' : 'premium';
         }
-        return movie;
+        
+        return {
+          ...movie,
+          isWishlisted: userData?.isWishlisted || false,
+          progress: userData?.progress || 0,
+          userRating: userData?.userRating || 0,
+          isPaid,
+          paymentStatus
+        };
       });
     } catch (error) {
       console.error('Error enhancing movies with user data:', error);
@@ -1402,6 +1527,7 @@ async deleteRequest(requestId: string): Promise<boolean> {
         streamingHeaders: {},
         isReady: false,
         isFeatured: true,
+        paymentStatus: 'free',
         $createdAt: undefined
       }
     ];
@@ -1429,11 +1555,15 @@ const MovieServiceContext = createContext<MovieServiceContextType>({
 export const MovieServiceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [service] = useState<MovieService>(new MovieService());
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
+  const paymentService = usePaymentService();
 
   useEffect(() => {
     const initializeService = async () => {
       await service.initialize();
       setIsInitialized(true);
+      
+      // Make payment service available globally for use in the movie service
+      (window as any).__paymentService = paymentService.service;
     };
 
     initializeService();
@@ -1441,8 +1571,9 @@ export const MovieServiceProvider: React.FC<{ children: ReactNode }> = ({ childr
     // Cleanup function to destroy service on unmount
     return () => {
       service.destroy();
+      delete (window as any).__paymentService;
     };
-  }, [service]);
+  }, [service, paymentService.service]);
 
   return (
     <MovieServiceContext.Provider value={{ service, isInitialized }}>
@@ -1453,5 +1584,52 @@ export const MovieServiceProvider: React.FC<{ children: ReactNode }> = ({ childr
 
 // Hook to use the movie service
 export const useMovieService = () => useContext(MovieServiceContext);
+
+// Movie Card component with payment badge
+export interface MovieCardProps {
+  movie: Movie;
+  onClick?: () => void;
+  className?: string;
+}
+
+export const MovieCard: React.FC<MovieCardProps> = ({ movie, onClick, className }) => {
+  const paymentStatus = movie.paymentStatus || (movie.isPremium ? 'premium' : 'free');
+  const badgeClass = getBadgeClass(paymentStatus);
+  
+  return (
+    <div 
+      className={`relative movie-card cursor-pointer rounded-lg overflow-hidden shadow-md ${className || ''}`}
+      onClick={onClick}
+    >
+      <img 
+        src={movie.posterUrl} 
+        alt={movie.title} 
+        className="w-full h-auto object-cover"
+      />
+      <div className="p-2 bg-gray-800">
+        <h3 className="text-white font-medium truncate">{movie.title}</h3>
+        <div className="flex justify-between items-center mt-1">
+          <span className="text-gray-300 text-sm">{movie.year}</span>
+          <span className={`text-xs px-2 py-0.5 rounded ${badgeClass}`}>
+            {paymentStatus.charAt(0).toUpperCase() + paymentStatus.slice(1)}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+// Helper function to get badge class based on payment status
+function getBadgeClass(status: string): string {
+  switch (status) {
+    case 'premium':
+      return 'bg-purple-600 text-white';
+    case 'paid':
+      return 'bg-green-600 text-white';
+    case 'free':
+    default:
+      return 'bg-blue-600 text-white';
+  }
+}
 
 export default MovieService;
