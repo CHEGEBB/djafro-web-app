@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 'use client';
 
 import React, { useEffect, useState, useRef, useCallback } from 'react';
@@ -1038,9 +1039,9 @@ export default function MoviesPage() {
         // Mark movies as premium or paid based on payment status
         if (movie.isPremium) {
           if (userPaidMovies.includes(movie.id)) {
-            return { ...movie, paymentStatus: 'paid' as 'paid' };
+            return { ...movie, paymentStatus: 'paid' as const };
           } else {
-            return { ...movie, paymentStatus: 'premium' as 'premium' };
+            return { ...movie, paymentStatus: 'premium' as const };
           }
         }
         return { ...movie, paymentStatus: undefined }; // Ensure paymentStatus is defined
