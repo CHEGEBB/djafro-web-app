@@ -268,11 +268,21 @@ class PaymentService {
       
       console.log('PaymentService: Pesapal payload:', payload);
       
-      // Execute Appwrite function
+      // Check if function ID is available
+      const functionId = process.env.NEXT_PUBLIC_PESAPAL_STK_PUSH_FUNCTION_ID;
+      if (!functionId) {
+        console.error('PaymentService: Missing Pesapal STK Push function ID in environment variables');
+        return {
+          success: false,
+          message: 'Payment service configuration error. Please contact support.',
+        };
+      }
+      
+      // Execute Appwrite function with explicit function ID
       const execution = await this.functions.createExecution(
-        process.env.NEXT_PUBLIC_PESAPAL_STK_PUSH_FUNCTION_ID!,
+        functionId,
         JSON.stringify(payload),
-        false, // Wait for response
+        false // Wait for response
       );
       
       console.log('PaymentService: Function execution status:', execution.status);

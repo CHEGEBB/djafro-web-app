@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/MovieRow.tsx - With Payment Integration
+// components/MovieRow.tsx - Complete with Payment Integration
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -150,12 +150,14 @@ const MovieRow: React.FC<MovieRowProps> = ({
       return;
     }
 
+    // Check if premium and not paid - show payment modal
     if (movie.isPremium && movie.paymentStatus === 'premium') {
       setSelectedMovie(movie);
       setShowPaymentModal(true);
       return;
     }
 
+    // Otherwise play the movie
     router.push(`/play?id=${movie.originalId || movie.id}`);
   }, [router]);
   
@@ -472,10 +474,11 @@ const MovieRow: React.FC<MovieRowProps> = ({
         )}
       </div>
 
+      {/* Payment Modal - Shown when premium movie is clicked */}
       {showPaymentModal && selectedMovie && (
         <PaymentModal
           movie={selectedMovie}
-          paymentContext={paymentService}
+          paymentService={paymentService}
           movieService={service}
           onClose={() => {
             setShowPaymentModal(false);
@@ -483,6 +486,11 @@ const MovieRow: React.FC<MovieRowProps> = ({
           }}
           onPaymentSuccess={async () => {
             setShowPaymentModal(false);
+            // Refresh the movie data to update payment status
+            if (service?.getMovieById) {
+              await service.getMovieById(selectedMovie.originalId || selectedMovie.id);
+            }
+            // Redirect to play page
             router.push(`/play?id=${selectedMovie.originalId || selectedMovie.id}`);
           }}
         />
@@ -491,13 +499,14 @@ const MovieRow: React.FC<MovieRowProps> = ({
   );
 };
 
+// Payment Modal Component
 const PaymentModal: React.FC<{
   movie: any;
-  paymentContext: any;
+  paymentService: any;
   movieService: any;
   onClose: () => void;
   onPaymentSuccess: () => void;
-}> = ({ movie, paymentContext, movieService, onClose, onPaymentSuccess }) => {
+}> = ({ movie, paymentService, movieService, onClose, onPaymentSuccess }) => {
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
@@ -526,7 +535,7 @@ const PaymentModal: React.FC<{
     setError('');
 
     try {
-      const result = await paymentContext.processPesapalPayment(
+      const result = await paymentService.processPesapalPayment(
         movie.originalId || movie.id,
         phoneNumber
       );
@@ -571,7 +580,7 @@ const PaymentModal: React.FC<{
       attempts++;
       
       try {
-        const isPaid = await paymentContext.refreshPaymentStatus(movieId);
+        const isPaid = await paymentService.refreshPaymentStatus(movieId);
         
         if (isPaid) {
           if (pollingRef.current) {
@@ -622,7 +631,7 @@ const PaymentModal: React.FC<{
         document.cookie = `pendingPayment=${paymentData}; path=/; max-age=3600`;
       }
       
-      const success = await paymentContext.handlePesapalRedirect(redirectUrl, movie.originalId || movie.id);
+      const success = await paymentService.handlePesapalRedirect(redirectUrl, movie.originalId || movie.id);
       
       if (!success) {
         setError('Failed to open payment page. Please try again.');
