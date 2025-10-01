@@ -81,8 +81,8 @@ const featuredMovies = [
   },
   {
     id: 7,
-    title: "DjAfro-Deadpool",
-    description: "A former Special Forces operative turned mercenary is subjected to a rogue experiment that leaves him with accelerated healing powers, adopting the alter ego Deadpool.",
+    title: "DjAfro-Guardians of the Galaxy",
+    description: "A group of intergalactic criminals must pull together to stop a fanatical warrior with plans to purge the universe.",
     year: 2020,
     rating: 8.8,
     genre: ["Action", "Sci-Fi"],
