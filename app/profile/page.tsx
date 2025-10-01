@@ -6,6 +6,8 @@ import Image from 'next/image';
 import LayoutController from '@/components/LayoutController';
 import { authService, AuthState } from '@/services/auth_service';
 import { useTheme, AppTheme } from '@/context/ThemeContext';
+import Head from 'next/head'; 
+
 import { 
   User, 
   Mail, 
@@ -262,6 +264,26 @@ const ProfilePage: React.FC = () => {
 
   return (
     <LayoutController>
+      <Head>
+      <title>Dashboard – DJ Afro Movies | Trending & New Releases</title>
+      <meta
+        name="description"
+        content="Browse DJ Afro trending movies, new releases, and genre-based collections. Continue watching your favorites or add to wishlist anytime."
+      />
+      <meta
+        name="keywords"
+        content="DJ Afro movies dashboard, trending DJ Afro movies, new releases, African movies online"
+      />
+      <meta name="robots" content="index, follow" />
+      <meta property="og:title" content="Dashboard – DJ Afro Movies" />
+      <meta
+        property="og:description"
+        content="Watch trending DJ Afro movies, new releases, and explore genres on DJAfroMovies."
+      />
+      <meta property="og:image" content="/og-image.jpg" />
+      <meta property="og:url" content="https://djafromovies.vercel.app" />
+      <meta name="twitter:card" content="summary_large_image" />
+    </Head>
       <div className="profile-page min-h-screen bg-black text-white">
         {/* Hero Section */}
         <div className="profile-hero relative overflow-hidden">

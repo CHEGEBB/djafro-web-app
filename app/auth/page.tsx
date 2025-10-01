@@ -20,6 +20,8 @@ import {
   AlertTriangle
 } from 'lucide-react';
 import '../../styles/animationsauth.scss';
+import Head from "next/head";
+
 
 // Auth page component
 export default function AuthPage() {
@@ -228,6 +230,7 @@ export default function AuthPage() {
   // BETTER LOADING SCREEN - only shows briefly
   if (initialLoading) {
     return (
+      
       <div className="fixed inset-0 bg-gradient-to-br from-gray-900 via-black to-gray-900 flex items-center justify-center">
         <div className="text-center">
           <div className="relative">

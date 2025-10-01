@@ -10,6 +10,8 @@ import { useMovieService } from '@/services/movie_service';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Heart, PlayCircle, Clock, Calendar, Trash2, Star, ChevronRight, Film, User, History, BookOpen, BookMarked, ListFilter, Check, X, Info } from 'lucide-react';
 import '@/styles/libraryAnimations.scss';
+import Head from 'next/head'; 
+
 
 // Types for our library items
 interface LibraryMovie {
@@ -823,6 +825,26 @@ export default function LibraryPage() {
   if (isLoading) {
     return (
       <LayoutController>
+      <Head>
+      <title>Dashboard – DJ Afro Movies | Trending & New Releases</title>
+      <meta
+        name="description"
+        content="Browse DJ Afro trending movies, new releases, and genre-based collections. Continue watching your favorites or add to wishlist anytime."
+      />
+      <meta
+        name="keywords"
+        content="DJ Afro movies dashboard, trending DJ Afro movies, new releases, African movies online"
+      />
+      <meta name="robots" content="index, follow" />
+      <meta property="og:title" content="Dashboard – DJ Afro Movies" />
+      <meta
+        property="og:description"
+        content="Watch trending DJ Afro movies, new releases, and explore genres on DJAfroMovies."
+      />
+      <meta property="og:image" content="/og-image.jpg" />
+      <meta property="og:url" content="https://djafromovies.vercel.app" />
+      <meta name="twitter:card" content="summary_large_image" />
+    </Head>
         <div className="min-h-screen bg-black text-white">
           <div className="flex items-center justify-center h-screen">
             <div className="text-center">

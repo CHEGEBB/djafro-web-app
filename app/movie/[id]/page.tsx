@@ -4,6 +4,8 @@ import { useEffect, useState } from 'react';
 import { useMovieService, Movie } from '@/services/movie_service';
 import { useParams } from 'next/navigation';
 import PremiumMovieButton from '@/components/PremiumMovieButton';
+import Head from 'next/head'; 
+
 
 export default function MovieDetailPage() {
   const { id } = useParams();
@@ -64,6 +66,26 @@ export default function MovieDetailPage() {
   
   return (
     <div className="container mx-auto p-4">
+        <Head>
+      <title>Dashboard – DJ Afro Movies | Trending & New Releases</title>
+      <meta
+        name="description"
+        content="Browse DJ Afro trending movies, new releases, and genre-based collections. Continue watching your favorites or add to wishlist anytime."
+      />
+      <meta
+        name="keywords"
+        content="DJ Afro movies dashboard, trending DJ Afro movies, new releases, African movies online"
+      />
+      <meta name="robots" content="index, follow" />
+      <meta property="og:title" content="Dashboard – DJ Afro Movies" />
+      <meta
+        property="og:description"
+        content="Watch trending DJ Afro movies, new releases, and explore genres on DJAfroMovies."
+      />
+      <meta property="og:image" content="/og-image.jpg" />
+      <meta property="og:url" content="https://djafromovies.vercel.app" />
+      <meta name="twitter:card" content="summary_large_image" />
+    </Head>
       <div className="flex flex-col md:flex-row gap-8">
         <div className="md:w-1/3">
           <img 

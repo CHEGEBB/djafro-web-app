@@ -10,6 +10,8 @@ import { usePaymentService } from '@/services/payment_service';
 import { ChevronLeft, ChevronRight, Star, Heart, FilmIcon, Play, Clock, Calendar, Filter, ChevronDown, X, Lock, Check } from 'lucide-react';
 import '@/styles/MoviesPage.scss';
 import authService from '@/services/auth_service';
+import Head from 'next/head'; 
+
 
 // Interfaces
 interface MovieCardProps {
@@ -1273,6 +1275,26 @@ export default function MoviesPage() {
   if (isLoading) {
     return (
       <LayoutController>
+      <Head>
+      <title>Dashboard – DJ Afro Movies | Trending & New Releases</title>
+      <meta
+        name="description"
+        content="Browse DJ Afro trending movies, new releases, and genre-based collections. Continue watching your favorites or add to wishlist anytime."
+      />
+      <meta
+        name="keywords"
+        content="DJ Afro movies dashboard, trending DJ Afro movies, new releases, African movies online"
+      />
+      <meta name="robots" content="index, follow" />
+      <meta property="og:title" content="Dashboard – DJ Afro Movies" />
+      <meta
+        property="og:description"
+        content="Watch trending DJ Afro movies, new releases, and explore genres on DJAfroMovies."
+      />
+      <meta property="og:image" content="/og-image.jpg" />
+      <meta property="og:url" content="https://djafromovies.vercel.app" />
+      <meta name="twitter:card" content="summary_large_image" />
+    </Head>
         <div className="min-h-screen bg-black flex items-center justify-center">
           <div className="text-center">
             <div className="animate-spin rounded-full h-16 w-16 border-b-2 border-red-500 mx-auto mb-4"></div>

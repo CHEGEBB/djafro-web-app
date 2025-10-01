@@ -7,11 +7,33 @@ import { useRouter, useSearchParams } from 'next/navigation';
 import { ArrowLeft, Play, Pause, Volume2, VolumeX, Maximize, 
          SkipForward, SkipBack, Loader, AlertCircle, Minimize } from 'lucide-react';
 import { useMovieService, Movie } from '@/services/movie_service';
+import Head from 'next/head'; 
+
 
 // Loading fallback component
 function LoadingFallback() {
   return (
     <div className="fixed inset-0 bg-black flex items-center justify-center">
+      <Head>
+      <title>Dashboard – DJ Afro Movies | Trending & New Releases</title>
+      <meta
+        name="description"
+        content="Browse DJ Afro trending movies, new releases, and genre-based collections. Continue watching your favorites or add to wishlist anytime."
+      />
+      <meta
+        name="keywords"
+        content="DJ Afro movies dashboard, trending DJ Afro movies, new releases, African movies online"
+      />
+      <meta name="robots" content="index, follow" />
+      <meta property="og:title" content="Dashboard – DJ Afro Movies" />
+      <meta
+        property="og:description"
+        content="Watch trending DJ Afro movies, new releases, and explore genres on DJAfroMovies."
+      />
+      <meta property="og:image" content="/og-image.jpg" />
+      <meta property="og:url" content="https://djafromovies.vercel.app" />
+      <meta name="twitter:card" content="summary_large_image" />
+    </Head>
       <div className="text-center">
         <div className="w-16 h-16 border-4 border-t-red-600 border-r-red-600 border-b-gray-800 border-l-gray-800 rounded-full animate-spin mx-auto mb-4"></div>
         <p className="text-xl font-medium text-white">Loading video player...</p>
