@@ -4,8 +4,11 @@ import { Geist, Geist_Mono } from "next/font/google";
 import "./globals.css";
 import { ThemeProvider } from "@/context/ThemeContext";
 import { MovieServiceProvider } from "@/services/movie_service";
-import Script from "next/script"; // ✅ Import Script
+import Script from "next/script";
 import { PaymentServiceProvider } from "@/services/payment_service";
+
+// ✅ Import Analytics
+import { Analytics } from "@vercel/analytics/react";
 
 const geistSans = Geist({
   variable: "--font-geist-sans",
@@ -36,20 +39,20 @@ export default function RootLayout({
           src="https://pagead2.googlesyndication.com/pagead/js?client=ca-pub-2159359175366212"
           crossOrigin="anonymous"
         ></script>
-
-        
       </head>
       <body
         className={`${geistSans.variable} ${geistMono.variable} antialiased`}
       >
         <ThemeProvider>
-        <PaymentServiceProvider>
-          <MovieServiceProvider>
-            {children}
-
-          </MovieServiceProvider>
+          <PaymentServiceProvider>
+            <MovieServiceProvider>
+              {children}
+            </MovieServiceProvider>
           </PaymentServiceProvider>
         </ThemeProvider>
+
+        {/* ✅ Vercel Analytics */}
+        <Analytics />
       </body>
     </html>
   );
