@@ -36,7 +36,8 @@ export type Movie = {
 // Video source types
 const SOURCE_BUNNY = 'bunny';
 const SOURCE_YOUTUBE = 'youtube';
-const SOURCE_DAILYMOTION = 'dailymotion';
+const SOURCE_DAILYMOTION = 'dailymotion'; 
+const SOURCE_MEGA = 'mega'; 
 
 class MovieService {
   private client: Client;
@@ -184,7 +185,15 @@ class MovieService {
     return {};
   }
 
-  private detectVideoSource(url: string): { type: string; url: string; videoId?: string } {
+  private detectVideoSource(url: string): { 
+    type: string; 
+    url: string; 
+    videoId?: string;
+    fileId?: string;
+    key?: string;
+    bucketId?: string;
+    projectId?: string;
+  } {
     if (!url) {
       return { type: '', url: '' };
     }
@@ -215,32 +224,61 @@ class MovieService {
       }
     }
     
-    // Check for Dailymotion URLs
-    if (normalizedUrl.includes('dailymotion.com') || normalizedUrl.includes('dai.ly/')) {
-      let videoId = '';
+  // Check for Dailymotion URLs
+if (normalizedUrl.includes('dailymotion.com') || normalizedUrl.includes('dai.ly/')) {
+  let videoId = '';
+  
+  if (normalizedUrl.includes('dailymotion.com/embed/video/')) {
+    const segments = new URL(normalizedUrl).pathname.split('/');
+    videoId = segments[segments.length - 1];
+  } else if (normalizedUrl.includes('dai.ly/')) {
+    const segments = new URL(normalizedUrl).pathname.split('/');
+    videoId = segments[segments.length - 1];
+  }
+  
+  if (videoId) {
+    return { type: SOURCE_DAILYMOTION, url: normalizedUrl, videoId };
+  }
+}
+
+// Check for MEGA URLs
+if (normalizedUrl.includes('mega.nz/file/') || normalizedUrl.includes('mega.nz/embed/')) {
+  try {
+    let fileId = '';
+    let key = '';
+    
+    // Handle both formats: mega.nz/file/ID#KEY and mega.nz/embed/ID#KEY
+    const hashIndex = normalizedUrl.indexOf('#');
+    if (hashIndex !== -1) {
+      key = normalizedUrl.substring(hashIndex + 1);
       
-      if (normalizedUrl.includes('dailymotion.com/embed/video/')) {
-        const segments = new URL(normalizedUrl).pathname.split('/');
-        videoId = segments[segments.length - 1];
-      } else if (normalizedUrl.includes('dai.ly/')) {
-        const segments = new URL(normalizedUrl).pathname.split('/');
-        videoId = segments[segments.length - 1];
-      }
+      // Extract file ID from path
+      const uri = new URL(normalizedUrl.split('#')[0]); // Remove hash before parsing
+      const pathSegments = uri.pathname.split('/').filter(Boolean);
       
-      if (videoId) {
-        return { type: SOURCE_DAILYMOTION, url: normalizedUrl, videoId };
+      // Path is either /file/ID or /embed/ID
+      if (pathSegments.length >= 2 && (pathSegments[0] === 'file' || pathSegments[0] === 'embed')) {
+        fileId = pathSegments[1];
       }
     }
     
-    // Default to Bunny Stream
-    return { type: SOURCE_BUNNY, url: normalizedUrl };
+    if (fileId && key) {
+      return { type: SOURCE_MEGA, url: normalizedUrl, fileId, key };
+    }
+  } catch (e) {
+    console.error('Error parsing MEGA URL:', e);
+  }
+}
+
+// Default to Bunny Stream
+return { type: SOURCE_BUNNY, url: normalizedUrl };
   }
 
   private async formatVideoUrls(baseUrl: string): Promise<Record<string, string>> {
     if (!baseUrl) {
       return {};
     }
-
+  
     try {
       const sourceInfo = this.detectVideoSource(baseUrl);
       const sourceType = sourceInfo.type;
@@ -259,8 +297,6 @@ class MovieService {
       // Handle Dailymotion URLs
       else if (sourceType === SOURCE_DAILYMOTION) {
         const videoId = sourceInfo.videoId || '';
-        
-        // Format embed URL properly like your mobile version
         const embedUrl = `https://www.dailymotion.com/embed/video/${videoId}`;
         
         return {
@@ -271,31 +307,49 @@ class MovieService {
         };
       }
       
+      // Handle MEGA URLs
+      else if (sourceType === SOURCE_MEGA) {
+        const fileId = sourceInfo.fileId || '';
+        const key = sourceInfo.key || '';
+        
+        if (!fileId || !key) {
+          console.error('MEGA URL missing fileId or key');
+          return { original: baseUrl, sourceType: SOURCE_MEGA };
+        }
+        
+        // MEGA embed URL format
+        const embedUrl = `https://mega.nz/embed/${fileId}#${key}`;
+        
+        return {
+          mega: fileId,
+          key: key,
+          embed: embedUrl,
+          original: baseUrl,
+          sourceType: SOURCE_MEGA,
+        };
+      }
+      
       // Handle Bunny.net URLs
       else {
         // If it's already a direct CDN URL, use it
         if (baseUrl.includes('b-cdn.net')) {
           const videoUrls: Record<string, string> = {};
           
-          // If it's an HLS playlist URL, use it directly
           if (baseUrl.includes('playlist.m3u8')) {
             videoUrls['hls'] = baseUrl;
             videoUrls['original'] = baseUrl;
             videoUrls['sourceType'] = SOURCE_BUNNY;
             
-            // Try to construct MP4 URLs from the same base
             const baseUrlWithoutFile = baseUrl.replace('/playlist.m3u8', '');
             videoUrls['1080p'] = `${baseUrlWithoutFile}/play_1080p.mp4`;
             videoUrls['720p'] = `${baseUrlWithoutFile}/play_720p.mp4`;
             videoUrls['480p'] = `${baseUrlWithoutFile}/play_480p.mp4`;
             videoUrls['360p'] = `${baseUrlWithoutFile}/play_360p.mp4`;
           } 
-          // If it's an MP4 URL, use it directly
           else if (baseUrl.includes('.mp4')) {
             videoUrls['original'] = baseUrl;
             videoUrls['sourceType'] = SOURCE_BUNNY;
             
-            // Try to construct other quality URLs
             if (baseUrl.includes('play_720p.mp4')) {
               videoUrls['720p'] = baseUrl;
               const baseUrlWithoutQuality = baseUrl.replace('play_720p.mp4', '');
@@ -322,13 +376,11 @@ class MovieService {
         
         const { libraryId, videoId, pullZone } = videoInfo;
         
-        // Generate video URLs like your mobile version
         const videoUrls: Record<string, string> = {
           sourceType: SOURCE_BUNNY,
           original: baseUrl,
         };
         
-        // For web, prefer MP4 over HLS due to better browser support
         if (typeof window !== 'undefined') {
           videoUrls['720p'] = `https://${pullZone}/${videoId}/play_720p.mp4`;
           videoUrls['480p'] = `https://${pullZone}/${videoId}/play_480p.mp4`;
@@ -350,8 +402,8 @@ class MovieService {
     const sourceInfo = this.detectVideoSource(videoUrl);
     const sourceType = sourceInfo.type;
     
-    // For YouTube and Dailymotion, no special headers needed
-    if (sourceType === SOURCE_YOUTUBE || sourceType === SOURCE_DAILYMOTION) {
+    // For YouTube, Dailymotion, and MEGA, no special headers needed
+    if (sourceType === SOURCE_YOUTUBE || sourceType === SOURCE_DAILYMOTION || sourceType === SOURCE_MEGA) {
       return {};
     }
     
@@ -373,7 +425,6 @@ class MovieService {
       'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36',
     };
   }
-
   // Main method to fetch all movies
   async getAllMovies(options: {
     offset?: number;
