@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // services/payment_service.tsx
 'use client'
-import { Client, Databases, Functions, ID, Query } from 'appwrite';
+import { Client, Databases, Functions, Query } from 'appwrite';
 import { authService } from './auth_service';
 import { useState, useEffect, createContext, useContext, ReactNode } from 'react';
 
@@ -10,11 +10,14 @@ export interface Payment {
   id: string;
   userId: string;
   movieId: string;
+  movieIds?: string[];
   reference: string;
-  orderTrackingId?: string;
+  invoiceId?: string;
+  checkoutId?: string;
   amount: number;
   status: 'pending' | 'completed' | 'failed' | 'cancelled';
   paymentMethod?: string;
+  paymentType?: string;
   paidAt?: Date;
   createdAt: Date;
   updatedAt: Date;
@@ -25,12 +28,14 @@ export interface PaymentResult {
   message: string;
   data?: {
     reference?: string;
-    orderTrackingId?: string;
-    redirectUrl?: string;
+    invoiceId?: string;
+    checkoutId?: string;
     amount?: number;
     phoneNumber?: string;
     status?: string;
     alreadyPaid?: boolean;
+    paymentType?: string;
+    moviesCount?: number;
   };
 }
 
@@ -71,7 +76,7 @@ class PaymentService {
       // If user changed, update userId and clear cache
       if (this.userId !== newUserId) {
         this.userId = newUserId;
-        this.clearAllCache(); // Clear cache when user changes
+        this.clearAllCache();
       }
     });
     
@@ -105,7 +110,6 @@ class PaymentService {
     }
   }
 
-  // Clean up subscriptions
   destroy(): void {
     if (this.authUnsubscribe) {
       this.authUnsubscribe();
@@ -113,14 +117,12 @@ class PaymentService {
     }
   }
 
-  // Check if service is initialized
   private async ensureInitialized(): Promise<void> {
     if (!this.isInitialized) {
       await this.initialize();
     }
   }
 
-  // Validates payment data before processing
   private validatePaymentData(movieId: string, userId: string): boolean {
     if (!movieId) {
       console.error('PaymentService: Movie ID is empty');
@@ -135,7 +137,6 @@ class PaymentService {
     return true;
   }
 
-  // Error message formatting for user-friendly errors
   private getErrorMessage(error: any): string {
     if (error?.code) {
       switch (error.code) {
@@ -161,22 +162,17 @@ class PaymentService {
     }
   }
 
-  // Format phone number to standard format (254XXXXXXXXX)
   private formatPhoneNumber(phoneNumber: string): string {
-    // Remove any spaces, dashes, or other formatting
     let cleaned = phoneNumber.replace(/[^\d+]/g, '');
     
-    // Handle the +254 prefix
     if (cleaned.startsWith('+254')) {
-      cleaned = cleaned.substring(1); // Remove the + sign
+      cleaned = cleaned.substring(1);
     }
     
-    // Handle 07XXXXXXXX format (convert to 2547XXXXXXXX)
     if (cleaned.startsWith('07')) {
       cleaned = '254' + cleaned.substring(1);
     }
     
-    // Handle 01XXXXXXXX format (convert to 2541XXXXXXXX)
     if (cleaned.startsWith('01')) {
       cleaned = '254' + cleaned.substring(1);
     }
@@ -184,21 +180,17 @@ class PaymentService {
     return cleaned;
   }
 
-  // Validate Kenyan phone number
   private isValidKenyanPhoneNumber(phoneNumber: string): boolean {
     const formatted = this.formatPhoneNumber(phoneNumber);
     
-    // Check if it starts with 254 and has correct length
     if (!formatted.startsWith('254') || formatted.length !== 12) {
       return false;
     }
     
-    // Check if it has valid Kenyan prefixes (Safaricom: 254(7XX), Others supported by M-Pesa)
     const validPrefixes = /^254(7[0-9]|1[0-9])/;
     return validPrefixes.test(formatted);
   }
 
-  // Cache management functions
   private isCacheValid(cacheKey: string): boolean {
     const timestamp = this.cacheTimestamps.get(cacheKey);
     if (!timestamp) return false;
@@ -223,13 +215,18 @@ class PaymentService {
     console.log('PaymentService: Cleared all payment cache');
   }
 
-  // Initiates a payment for a movie
-  async initiatePesapalPayment(movieId: string, userId: string, phoneNumber: string): Promise<PaymentResult> {
+  async initiateIntasendSTKPush(
+    movieId: string, 
+    userId: string, 
+    phoneNumber: string,
+    customAmount?: number,
+    movieIds?: string[],
+    offerReference?: string
+  ): Promise<PaymentResult> {
     try {
       await this.ensureInitialized();
-      console.log('PaymentService: Initiating Pesapal payment for movieId:', movieId, 'userId:', userId);
+      console.log('PaymentService: Initiating Intasend STK Push for movieId:', movieId, 'userId:', userId, 'phone:', phoneNumber);
       
-      // Enhanced validation
       if (!this.validatePaymentData(movieId, userId)) {
         return {
           success: false,
@@ -237,7 +234,6 @@ class PaymentService {
         };
       }
 
-      // Format and validate phone number
       const formattedPhone = this.formatPhoneNumber(phoneNumber);
       if (!this.isValidKenyanPhoneNumber(formattedPhone)) {
         return {
@@ -246,7 +242,6 @@ class PaymentService {
         };
       }
 
-      // Check if user has already paid
       const alreadyPaid = await this.hasUserPaidForMovie(userId, movieId);
       if (alreadyPaid) {
         console.log('PaymentService: User already paid for movie');
@@ -257,41 +252,44 @@ class PaymentService {
         };
       }
       
-      // Prepare function payload for Pesapal
+      const actualAmount = customAmount ?? Number(process.env.NEXT_PUBLIC_MOVIE_PRICE || 10);
+      const actualMovieIds = movieIds ?? [movieId];
+      
       const payload = {
         movieId: movieId,
+        movieIds: actualMovieIds,
         userId: userId,
-        phoneNumber: '+' + formattedPhone, // Adding + prefix for Pesapal
-        amount: Number(process.env.NEXT_PUBLIC_WEB_MOVIE_PRICE || 20),
-        currency: process.env.NEXT_PUBLIC_CURRENCY || 'KES',
+        phoneNumber: formattedPhone,
+        amount: actualAmount,
+        offerType: movieIds && movieIds.length > 1 ? 'bundle' : 'single',
+        offerReference: offerReference,
       };
       
-      console.log('PaymentService: Pesapal payload:', payload);
+      console.log('PaymentService: Intasend STK Push payload:', JSON.stringify(payload));
       
-      // Check if function ID is available
-      const functionId = process.env.NEXT_PUBLIC_PESAPAL_STK_PUSH_FUNCTION_ID;
+      const functionId = process.env.NEXT_PUBLIC_INTASEND_STK_PUSH_FUNCTION_ID;
       if (!functionId) {
-        console.error('PaymentService: Missing Pesapal STK Push function ID in environment variables');
+        console.error('PaymentService: Missing Intasend STK Push function ID');
         return {
           success: false,
           message: 'Payment service configuration error. Please contact support.',
         };
       }
       
-      // Execute Appwrite function with explicit function ID
       const execution = await this.functions.createExecution(
         functionId,
         JSON.stringify(payload),
-        false // Wait for response
+        false
       );
       
       console.log('PaymentService: Function execution status:', execution.status);
+      console.log('PaymentService: Function response:', execution.responseBody);
       
       if (execution.status === 'completed') {
         if (execution.responseStatusCode === 200 && execution.responseBody) {
           try {
             const jsonResponse = JSON.parse(execution.responseBody);
-            console.log('PaymentService: Parsed Pesapal response:', jsonResponse);
+            console.log('PaymentService: Parsed Intasend STK Push response:', jsonResponse);
             
             if (jsonResponse.success === true && jsonResponse.data) {
               const data = jsonResponse.data;
@@ -299,20 +297,22 @@ class PaymentService {
               
               return {
                 success: true,
-                message: 'Pesapal payment initiated',
+                message: jsonResponse.message || 'STK Push sent. Please check your phone to enter M-Pesa PIN.',
                 data: {
                   reference: data.reference || '',
-                  orderTrackingId: data.orderTrackingId || '',
-                  amount: data.amount || Number(process.env.NEXT_PUBLIC_WEB_MOVIE_PRICE || 20),
+                  invoiceId: data.invoiceId || '',
+                  checkoutId: data.checkoutId || '',
+                  amount: data.amount || actualAmount,
                   phoneNumber: formattedPhone,
                   status: paymentStatus,
-                  redirectUrl: data.redirectUrl || data.redirect_url || '',
+                  paymentType: data.paymentType || 'single',
+                  moviesCount: data.moviesCount || 1
                 },
               };
             } else {
               return {
                 success: false,
-                message: jsonResponse.error || jsonResponse.message || 'Failed to initiate Pesapal payment',
+                message: jsonResponse.error || jsonResponse.message || 'Failed to initiate STK Push',
               };
             }
           } catch (e) {
@@ -344,7 +344,7 @@ class PaymentService {
         };
       }
     } catch (error) {
-      console.error('PaymentService: Error initiating Pesapal payment:', error);
+      console.error('PaymentService: Error initiating Intasend STK Push:', error);
       return {
         success: false,
         message: this.getErrorMessage(error),
@@ -352,7 +352,6 @@ class PaymentService {
     }
   }
 
-  // Check if a user has paid for a specific movie
   async hasUserPaidForMovie(userId: string, movieId: string): Promise<boolean> {
     try {
       await this.ensureInitialized();
@@ -362,7 +361,6 @@ class PaymentService {
         return false;
       }
       
-      // Check cache first
       const cacheKey = `${userId}_${movieId}`;
       if (this.isCacheValid(cacheKey) && this.paymentCache.has(cacheKey)) {
         console.log('PaymentService: Using cached payment status for', cacheKey, ':', this.paymentCache.get(cacheKey));
@@ -371,7 +369,7 @@ class PaymentService {
       
       console.log('PaymentService: Checking if user', userId, 'has paid for movie', movieId);
       
-      const response = await this.databases.listDocuments(
+      const directResponse = await this.databases.listDocuments(
         process.env.NEXT_PUBLIC_DATABASE_ID!,
         process.env.NEXT_PUBLIC_PAYMENTS_COLLECTION_ID!,
         [
@@ -382,21 +380,58 @@ class PaymentService {
         ]
       );
       
-      const hasPaid = response.documents.length > 0;
-      console.log('PaymentService: User', userId, 'payment status for movie', movieId, ':', hasPaid);
+      if (directResponse.documents.length > 0) {
+        this.paymentCache.set(cacheKey, true);
+        this.cacheTimestamps.set(cacheKey, new Date());
+        console.log('PaymentService: Found direct payment for movie', movieId);
+        return true;
+      }
       
-      // Cache the result
-      this.paymentCache.set(cacheKey, hasPaid);
+      const bundleResponse = await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_PAYMENTS_COLLECTION_ID!,
+        [
+          Query.equal('userId', userId),
+          Query.equal('status', 'completed'),
+        ]
+      );
+      
+      for (const doc of bundleResponse.documents) {
+        const movieIdsField = doc.movieIds;
+        
+        if (movieIdsField) {
+          let movieIdsList: string[] = [];
+          
+          if (Array.isArray(movieIdsField)) {
+            movieIdsList = movieIdsField;
+          } else if (typeof movieIdsField === 'string') {
+            try {
+              const decoded = JSON.parse(movieIdsField);
+              if (Array.isArray(decoded)) {
+                movieIdsList = decoded;
+              }
+            } catch (_) {}
+          }
+          
+          if (movieIdsList.includes(movieId)) {
+            this.paymentCache.set(cacheKey, true);
+            this.cacheTimestamps.set(cacheKey, new Date());
+            console.log('PaymentService: Found bundle payment including movie', movieId);
+            return true;
+          }
+        }
+      }
+      
+      this.paymentCache.set(cacheKey, false);
       this.cacheTimestamps.set(cacheKey, new Date());
-      
-      return hasPaid;
+      console.log('PaymentService: No payment found for movie', movieId);
+      return false;
     } catch (error) {
       console.error('PaymentService: Error checking payment status:', error);
       return false;
     }
   }
 
-  // Check if current user has paid for a movie
   async hasCurrentUserPaidForMovie(movieId: string): Promise<boolean> {
     try {
       if (!this.userId) {
@@ -410,7 +445,6 @@ class PaymentService {
     }
   }
 
-  // Refresh payment status by clearing cache and checking again
   async refreshPaymentStatus(userId: string, movieId: string): Promise<boolean> {
     try {
       this.clearCache(userId, movieId);
@@ -421,7 +455,6 @@ class PaymentService {
     }
   }
 
-  // Refresh current user's payment status
   async refreshCurrentUserPaymentStatus(movieId: string): Promise<boolean> {
     try {
       if (!this.userId) {
@@ -435,7 +468,6 @@ class PaymentService {
     }
   }
 
-  // Get payment by reference
   async getPaymentByReference(reference: string): Promise<Payment | null> {
     try {
       await this.ensureInitialized();
@@ -462,15 +494,33 @@ class PaymentService {
       }
       
       const doc = response.documents[0];
+      
+      let movieIdsList: string[] | undefined;
+      if (doc.movieIds) {
+        if (Array.isArray(doc.movieIds)) {
+          movieIdsList = doc.movieIds;
+        } else if (typeof doc.movieIds === 'string') {
+          try {
+            const decoded = JSON.parse(doc.movieIds);
+            if (Array.isArray(decoded)) {
+              movieIdsList = decoded;
+            }
+          } catch (_) {}
+        }
+      }
+      
       const payment: Payment = {
         id: doc.$id,
         userId: doc.userId,
         movieId: doc.movieId,
+        movieIds: movieIdsList,
         reference: doc.reference,
-        orderTrackingId: doc.orderTrackingId,
+        invoiceId: doc.invoiceId,
+        checkoutId: doc.checkoutId,
         amount: doc.amount,
         status: doc.status,
         paymentMethod: doc.paymentMethod,
+        paymentType: doc.paymentType,
         paidAt: doc.paidAt ? new Date(doc.paidAt) : undefined,
         createdAt: new Date(doc.$createdAt),
         updatedAt: new Date(doc.$updatedAt)
@@ -485,7 +535,6 @@ class PaymentService {
     }
   }
 
-  // Get all payments made by a user
   async getUserPaymentHistory(userId: string): Promise<Payment[]> {
     try {
       await this.ensureInitialized();
@@ -507,19 +556,38 @@ class PaymentService {
         ]
       );
       
-      const payments: Payment[] = response.documents.map(doc => ({
-        id: doc.$id,
-        userId: doc.userId,
-        movieId: doc.movieId,
-        reference: doc.reference,
-        orderTrackingId: doc.orderTrackingId,
-        amount: doc.amount,
-        status: doc.status,
-        paymentMethod: doc.paymentMethod,
-        paidAt: doc.paidAt ? new Date(doc.paidAt) : undefined,
-        createdAt: new Date(doc.$createdAt),
-        updatedAt: new Date(doc.$updatedAt)
-      }));
+      const payments: Payment[] = response.documents.map(doc => {
+        let movieIdsList: string[] | undefined;
+        if (doc.movieIds) {
+          if (Array.isArray(doc.movieIds)) {
+            movieIdsList = doc.movieIds;
+          } else if (typeof doc.movieIds === 'string') {
+            try {
+              const decoded = JSON.parse(doc.movieIds);
+              if (Array.isArray(decoded)) {
+                movieIdsList = decoded;
+              }
+            } catch (_) {}
+          }
+        }
+        
+        return {
+          id: doc.$id,
+          userId: doc.userId,
+          movieId: doc.movieId,
+          movieIds: movieIdsList,
+          reference: doc.reference,
+          invoiceId: doc.invoiceId,
+          checkoutId: doc.checkoutId,
+          amount: doc.amount,
+          status: doc.status,
+          paymentMethod: doc.paymentMethod,
+          paymentType: doc.paymentType,
+          paidAt: doc.paidAt ? new Date(doc.paidAt) : undefined,
+          createdAt: new Date(doc.$createdAt),
+          updatedAt: new Date(doc.$updatedAt)
+        };
+      });
       
       console.log('PaymentService: Found', payments.length, 'payments for user', userId);
       return payments;
@@ -529,7 +597,6 @@ class PaymentService {
     }
   }
 
-  // Get current user's payment history
   async getCurrentUserPaymentHistory(): Promise<Payment[]> {
     try {
       if (!this.userId) {
@@ -543,27 +610,57 @@ class PaymentService {
     }
   }
 
-  // Get all movies the current user has purchased
   async getCurrentUserPurchasedMovieIds(): Promise<string[]> {
     try {
       if (!this.userId) {
         return [];
       }
       
-      const payments = await this.getUserPaymentHistory(this.userId);
+      await this.ensureInitialized();
       
-      return payments
-        .filter(payment => payment.status === 'completed')
-        .map(payment => payment.movieId)
-        .filter((value, index, self) => self.indexOf(value) === index); // Remove duplicates
+      const response = await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_PAYMENTS_COLLECTION_ID!,
+        [
+          Query.equal('userId', this.userId),
+          Query.equal('status', 'completed'),
+        ]
+      );
+      
+      const purchasedMovies = new Set<string>();
+      
+      for (const doc of response.documents) {
+        if (doc.movieId) {
+          purchasedMovies.add(doc.movieId);
+        }
+        
+        if (doc.movieIds) {
+          let movieIdsList: string[] = [];
+          
+          if (Array.isArray(doc.movieIds)) {
+            movieIdsList = doc.movieIds;
+          } else if (typeof doc.movieIds === 'string') {
+            try {
+              const decoded = JSON.parse(doc.movieIds);
+              if (Array.isArray(decoded)) {
+                movieIdsList = decoded;
+              }
+            } catch (_) {}
+          }
+          
+          movieIdsList.forEach(id => purchasedMovies.add(id));
+        }
+      }
+      
+      console.log('PaymentService: User has purchased', purchasedMovies.size, 'movies');
+      return Array.from(purchasedMovies);
     } catch (error) {
       console.error('PaymentService: Error getting user purchased movies:', error);
       return [];
     }
   }
 
-  // Process payment for web
-  async processPesapalPayment(movieId: string, phoneNumber: string): Promise<PaymentResult> {
+  async processIntasendPayment(movieId: string, phoneNumber: string, customAmount?: number, movieIds?: string[], offerReference?: string): Promise<PaymentResult> {
     try {
       await this.ensureInitialized();
       
@@ -574,10 +671,9 @@ class PaymentService {
         };
       }
       
-      // Initiate Pesapal payment
-      return await this.initiatePesapalPayment(movieId, this.userId, phoneNumber);
+      return await this.initiateIntasendSTKPush(movieId, this.userId, phoneNumber, customAmount, movieIds, offerReference);
     } catch (error) {
-      console.error('PaymentService: Error processing Pesapal payment:', error);
+      console.error('PaymentService: Error processing Intasend payment:', error);
       return {
         success: false,
         message: this.getErrorMessage(error),
@@ -585,52 +681,17 @@ class PaymentService {
     }
   }
 
-  // Handle payment redirect
-  async handlePesapalRedirect(redirectUrl: string, movieId: string): Promise<boolean> {
-    try {
-      if (!redirectUrl || !movieId || !this.userId) {
-        return false;
-      }
-      
-      // For web, we'll open the redirect URL in a new window
-      const width = 500;
-      const height = 700;
-      const left = (window.innerWidth - width) / 2;
-      const top = (window.innerHeight - height) / 2;
-      
-      const paymentWindow = window.open(
-        redirectUrl,
-        'PesapalPayment',
-        `width=${width},height=${height},top=${top},left=${left}`
-      );
-      
-      if (!paymentWindow) {
-        console.error('Payment window was blocked by the browser');
-        // Fallback to redirecting in the same window
-        window.location.href = redirectUrl;
-      }
-      
-      return true;
-    } catch (error) {
-      console.error('PaymentService: Error handling Pesapal redirect:', error);
-      return false;
-    }
-  }
-
-  // Verify payment status after returning from Pesapal
   async verifyPaymentStatus(reference: string, movieId: string): Promise<boolean> {
     try {
       if (!reference || !movieId || !this.userId) {
         return false;
       }
       
-      // First check if payment is already marked as completed
       const isPaid = await this.refreshPaymentStatus(this.userId, movieId);
       if (isPaid) {
         return true;
       }
       
-      // Try to fetch the latest payment status
       const payment = await this.getPaymentByReference(reference);
       return payment?.status === 'completed';
     } catch (error) {
@@ -639,8 +700,7 @@ class PaymentService {
     }
   }
 
-  // Show payment modal for web
-  async showPesapalPaymentModal(movieId: string): Promise<PaymentResult> {
+  async showPaymentModal(movieId: string, customAmount?: number, movieIds?: string[], offerReference?: string): Promise<PaymentResult> {
     try {
       await this.ensureInitialized();
       
@@ -651,7 +711,6 @@ class PaymentService {
         };
       }
       
-      // Check if user is logged in
       if (!this.userId) {
         return {
           success: false,
@@ -661,7 +720,6 @@ class PaymentService {
       
       console.log('PaymentService: Processing payment for movie:', movieId, 'by user:', this.userId);
       
-      // Check if already paid
       const alreadyPaid = await this.hasUserPaidForMovie(this.userId, movieId);
       if (alreadyPaid) {
         return {
@@ -671,38 +729,105 @@ class PaymentService {
         };
       }
 
-      // This will be handled by the component that calls this method
       return {
         success: true,
         message: 'Please complete the payment process',
         data: {
-          amount: Number(process.env.NEXT_PUBLIC_WEB_MOVIE_PRICE || 20),
+          amount: customAmount ?? Number(process.env.NEXT_PUBLIC_MOVIE_PRICE || 10),
           status: 'pending',
+          paymentType: movieIds && movieIds.length > 1 ? 'bundle' : 'single',
+          moviesCount: movieIds ? movieIds.length : 1
         }
       };
     } catch (error) {
-      console.error('PaymentService: Error in showPesapalPaymentModal:', error);
+      console.error('PaymentService: Error in showPaymentModal:', error);
       return {
         success: false,
         message: this.getErrorMessage(error),
       };
     }
   }
+
+  async verifyBundleUnlocked(userId: string, movieIds: string[]): Promise<boolean> {
+    try {
+      await this.ensureInitialized();
+      
+      console.log('🔍 Verifying bundle unlock for', userId, 'movies:', movieIds);
+      
+      for (const movieId of movieIds) {
+        const libraryCheck = await this.databases.listDocuments(
+          process.env.NEXT_PUBLIC_DATABASE_ID!,
+          process.env.NEXT_PUBLIC_USER_LIBRARY_COLLECTION_ID!,
+          [
+            Query.equal('userId', userId),
+            Query.equal('movieId', movieId),
+            Query.limit(1),
+          ]
+        );
+        
+        if (libraryCheck.documents.length === 0) {
+          console.log('❌ Movie', movieId, 'not found in user library');
+          return false;
+        }
+      }
+      
+      console.log('✅ All bundle movies verified in user library');
+      return true;
+    } catch (error) {
+      console.error('❌ Error verifying bundle:', error);
+      return false;
+    }
+  }
+
+  async forceRefreshLibrary(userId: string): Promise<void> {
+    try {
+      this.paymentCache.clear();
+      this.cacheTimestamps.clear();
+      
+      console.log('🔄 Force refreshed library cache for user:', userId);
+    } catch (error) {
+      console.error('❌ Error force refreshing library:', error);
+    }
+  }
+
+  async getVerifiedPurchasedMovies(userId: string): Promise<string[]> {
+    try {
+      await this.ensureInitialized();
+      
+      const library = await this.databases.listDocuments(
+        process.env.NEXT_PUBLIC_DATABASE_ID!,
+        process.env.NEXT_PUBLIC_USER_LIBRARY_COLLECTION_ID!,
+        [
+          Query.equal('userId', userId),
+          Query.limit(1000),
+        ]
+      );
+      
+      const movieIds = library.documents.map(doc => doc.movieId as string);
+      console.log('✅ Verified', movieIds.length, 'movies in user library');
+      
+      return movieIds;
+    } catch (error) {
+      console.error('❌ Error getting verified purchases:', error);
+      return [];
+    }
+  }
 }
 
-// Create a context for the payment service
 interface PaymentServiceContextType {
   service: PaymentService;
   isInitialized: boolean;
   isProcessingPayment: boolean;
   paymentModalOpen: boolean;
   selectedMovieId: string | null;
-  handlePaymentStart: (movieId: string) => Promise<PaymentResult>;
+  handlePaymentStart: (movieId: string, customAmount?: number, movieIds?: string[], offerReference?: string) => Promise<PaymentResult>;
   handlePaymentModalClose: () => void;
   refreshPaymentStatus: (movieId: string) => Promise<boolean>;
-  processPesapalPayment: (movieId: string, phoneNumber: string) => Promise<PaymentResult>;
-  handlePesapalRedirect: (redirectUrl: string, movieId: string) => Promise<boolean>;
+  processIntasendPayment: (movieId: string, phoneNumber: string, customAmount?: number, movieIds?: string[], offerReference?: string) => Promise<PaymentResult>;
   verifyPaymentStatus: (reference: string, movieId: string) => Promise<boolean>;
+  verifyBundleUnlocked: (userId: string, movieIds: string[]) => Promise<boolean>;
+  forceRefreshLibrary: (userId: string) => Promise<void>;
+  getVerifiedPurchasedMovies: (userId: string) => Promise<string[]>;
 }
 
 const PaymentServiceContext = createContext<PaymentServiceContextType>({
@@ -714,12 +839,13 @@ const PaymentServiceContext = createContext<PaymentServiceContextType>({
   handlePaymentStart: async () => ({ success: false, message: 'Payment service not initialized' }),
   handlePaymentModalClose: () => {},
   refreshPaymentStatus: async () => false,
-  processPesapalPayment: async () => ({ success: false, message: 'Payment service not initialized' }),
-  handlePesapalRedirect: async () => false,
+  processIntasendPayment: async () => ({ success: false, message: 'Payment service not initialized' }),
   verifyPaymentStatus: async () => false,
+  verifyBundleUnlocked: async () => false,
+  forceRefreshLibrary: async () => {},
+  getVerifiedPurchasedMovies: async () => [],
 });
 
-// Provider component
 export const PaymentServiceProvider: React.FC<{ children: ReactNode }> = ({ children }) => {
   const [service] = useState<PaymentService>(new PaymentService());
   const [isInitialized, setIsInitialized] = useState<boolean>(false);
@@ -735,19 +861,18 @@ export const PaymentServiceProvider: React.FC<{ children: ReactNode }> = ({ chil
 
     initializeService();
 
-    // Cleanup function to destroy service on unmount
     return () => {
       service.destroy();
     };
   }, [service]);
 
-  const handlePaymentStart = async (movieId: string): Promise<PaymentResult> => {
+  const handlePaymentStart = async (movieId: string, customAmount?: number, movieIds?: string[], offerReference?: string): Promise<PaymentResult> => {
     setIsProcessingPayment(true);
     setSelectedMovieId(movieId);
     setPaymentModalOpen(true);
 
     try {
-      const result = await service.showPesapalPaymentModal(movieId);
+      const result = await service.showPaymentModal(movieId, customAmount, movieIds, offerReference);
       if (!result.success || result.data?.alreadyPaid) {
         setPaymentModalOpen(false);
       }
@@ -773,10 +898,10 @@ export const PaymentServiceProvider: React.FC<{ children: ReactNode }> = ({ chil
     return await service.refreshCurrentUserPaymentStatus(movieId);
   };
 
-  const processPesapalPayment = async (movieId: string, phoneNumber: string): Promise<PaymentResult> => {
+  const processIntasendPayment = async (movieId: string, phoneNumber: string, customAmount?: number, movieIds?: string[], offerReference?: string): Promise<PaymentResult> => {
     setIsProcessingPayment(true);
     try {
-      const result = await service.processPesapalPayment(movieId, phoneNumber);
+      const result = await service.processIntasendPayment(movieId, phoneNumber, customAmount, movieIds, offerReference);
       setIsProcessingPayment(false);
       return result;
     } catch (error) {
@@ -789,13 +914,20 @@ export const PaymentServiceProvider: React.FC<{ children: ReactNode }> = ({ chil
     }
   };
 
-  const handlePesapalRedirect = async (redirectUrl: string, movieId: string): Promise<boolean> => {
-    setPaymentModalOpen(false);
-    return await service.handlePesapalRedirect(redirectUrl, movieId);
-  };
-
   const verifyPaymentStatus = async (reference: string, movieId: string): Promise<boolean> => {
     return await service.verifyPaymentStatus(reference, movieId);
+  };
+
+  const verifyBundleUnlocked = async (userId: string, movieIds: string[]): Promise<boolean> => {
+    return await service.verifyBundleUnlocked(userId, movieIds);
+  };
+
+  const forceRefreshLibrary = async (userId: string): Promise<void> => {
+    return await service.forceRefreshLibrary(userId);
+  };
+
+  const getVerifiedPurchasedMovies = async (userId: string): Promise<string[]> => {
+    return await service.getVerifiedPurchasedMovies(userId);
   };
 
   return (
@@ -808,16 +940,17 @@ export const PaymentServiceProvider: React.FC<{ children: ReactNode }> = ({ chil
       handlePaymentStart,
       handlePaymentModalClose,
       refreshPaymentStatus,
-      processPesapalPayment,
-      handlePesapalRedirect,
-      verifyPaymentStatus
+      processIntasendPayment,
+      verifyPaymentStatus,
+      verifyBundleUnlocked,
+      forceRefreshLibrary,
+      getVerifiedPurchasedMovies
     }}>
       {children}
     </PaymentServiceContext.Provider>
   );
 };
 
-// Hook to use the payment service
 export const usePaymentService = () => useContext(PaymentServiceContext);
 
 export default PaymentService;

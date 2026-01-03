@@ -7,7 +7,7 @@ import Image from 'next/image';
 import LayoutController from '@/components/LayoutController';
 import { useMovieService, Movie } from '@/services/movie_service';
 import { usePaymentService } from '@/services/payment_service';
-import { ChevronLeft, ChevronRight, Star, Heart, FilmIcon, Play, Clock, Calendar, Filter, ChevronDown, X, Lock, Check } from 'lucide-react';
+import { ChevronLeft, ChevronRight, Star, Heart, FilmIcon, Play, Clock, Filter, ChevronDown, X, Lock, Check } from 'lucide-react';
 import '@/styles/MoviesPage.scss';
 import authService from '@/services/auth_service';
 import Head from 'next/head'; 
@@ -66,11 +66,9 @@ const ResponsiveGenreSelector: React.FC<{
   };
 
   if (isMobile) {
-    // Mobile Dropdown Design
     return (
       <div className="px-4 sm:px-6 mb-6">
         <div className="genre-filter-mobile">
-          {/* Mobile Header */}
           <div className="flex items-center justify-between mb-4">
             <div className="flex items-center gap-3">
               <div className="w-10 h-10 bg-gradient-to-br from-red-500 to-red-600 rounded-xl flex items-center justify-center shadow-lg">
@@ -83,7 +81,6 @@ const ResponsiveGenreSelector: React.FC<{
             </div>
           </div>
 
-          {/* Mobile Dropdown */}
           <div ref={dropdownRef} className="relative">
             <button
               onClick={() => setIsDropdownOpen(!isDropdownOpen)}
@@ -126,7 +123,6 @@ const ResponsiveGenreSelector: React.FC<{
             )}
           </div>
 
-          {/* Clear Filter for Mobile */}
           {selectedGenre !== 'All' && (
             <div className="mt-4 flex items-center justify-between bg-red-500/10 backdrop-blur-xl border border-red-500/20 rounded-xl px-4 py-3">
               <div className="flex items-center gap-2">
@@ -146,11 +142,9 @@ const ResponsiveGenreSelector: React.FC<{
     );
   }
 
-  // Desktop/Tablet Horizontal Scrollable Design
   return (
     <div className="px-4 sm:px-6 lg:px-8 mb-8">
       <div className="genre-filter-desktop">
-        {/* Desktop Header */}
         <div className="flex items-center gap-4 mb-6">
           <div className="flex items-center gap-3">
             <div className="w-12 h-12 bg-gradient-to-br from-red-500 via-red-600 to-pink-600 rounded-2xl flex items-center justify-center shadow-xl">
@@ -165,7 +159,6 @@ const ResponsiveGenreSelector: React.FC<{
           </div>
         </div>
 
-        {/* Desktop Genre Pills */}
         <div className="relative">
           <div className="flex gap-3 overflow-x-auto scrollbar-hide pb-4">
             {genres.map((genre, index) => (
@@ -198,11 +191,9 @@ const ResponsiveGenreSelector: React.FC<{
             ))}
           </div>
           
-          {/* Desktop Gradient Overlay for Scroll Indication */}
           <div className="absolute right-0 top-0 bottom-4 w-20 bg-gradient-to-l from-black to-transparent pointer-events-none"></div>
         </div>
 
-        {/* Clear Filter for Desktop */}
         {selectedGenre !== 'All' && (
           <div className="mt-6 flex items-center justify-between bg-gradient-to-r from-red-500/10 via-pink-500/5 to-red-500/10 backdrop-blur-2xl border border-red-500/20 rounded-2xl px-6 py-4">
             <div className="flex items-center gap-3">
@@ -261,7 +252,6 @@ const MovieHeroBanner: React.FC<{
     setIsAutoPlaying(false);
   };
   
-  // Get payment badge
   const getPaymentBadge = (movie: Movie) => {
     if (!movie.isPremium) {
       return {
@@ -278,12 +268,11 @@ const MovieHeroBanner: React.FC<{
     }
     
     return {
-      text: 'Premium',
+      text: 'Premium - KES 10',
       className: 'bg-yellow-600 text-white'
     };
   };
 
-  // Check if the movie needs payment
   const needsPayment = (movie: Movie) => {
     return movie.isPremium && movie.paymentStatus === 'premium';
   };
@@ -360,7 +349,7 @@ const MovieHeroBanner: React.FC<{
                 {needsPayment(currentMovie) ? (
                   <>
                     <Lock className="w-5 h-5" />
-                    <span>Purchase</span>
+                    <span>Pay KES 10</span>
                   </>
                 ) : (
                   <>
@@ -412,7 +401,6 @@ const MovieHeroBanner: React.FC<{
 const MovieCard: React.FC<MovieCardProps> = ({ movie, onPlay, onToggleWishlist }) => {
   const [isHovered, setIsHovered] = useState(false);
   
-  // Get payment badge
   const getPaymentBadge = (movie: Movie) => {
     if (!movie.isPremium) {
       return {
@@ -429,12 +417,11 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onPlay, onToggleWishlist }
     }
     
     return {
-      text: 'Premium',
+      text: 'KES 10',
       className: 'bg-yellow-600 text-white'
     };
   };
 
-  // Check if the movie needs payment
   const needsPayment = (movie: Movie) => {
     return movie.isPremium && movie.paymentStatus === 'premium';
   };
@@ -458,7 +445,6 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onPlay, onToggleWishlist }
             sizes="(max-width: 640px) 160px, (max-width: 1024px) 200px, 280px"
           />
           
-          {/* Payment Badge */}
           <div className={`absolute top-2 left-2 ${badge.className} text-xs px-2 py-1 rounded-full font-semibold flex items-center gap-1 z-10`}>
             {needsPayment(movie) && <Lock size={10} />}
             {badge.text}
@@ -493,7 +479,7 @@ const MovieCard: React.FC<MovieCardProps> = ({ movie, onPlay, onToggleWishlist }
                   {needsPayment(movie) ? (
                     <>
                       <Lock className="w-4 h-4" />
-                      Purchase
+                      Pay 10 KSH
                     </>
                   ) : (
                     <>
@@ -587,7 +573,7 @@ const AutoScrollSection: React.FC<{
 
     let animationId: number;
     let currentScroll = 0;
-    const scrollSpeed = 0.5; // pixels per frame
+    const scrollSpeed = 0.5;
 
     const animate = () => {
       currentScroll += scrollSpeed;
@@ -602,7 +588,7 @@ const AutoScrollSection: React.FC<{
 
     const timeoutId = setTimeout(() => {
       animationId = requestAnimationFrame(animate);
-    }, 2000); // Start scrolling after 2 seconds
+    }, 2000);
 
     return () => {
       clearTimeout(timeoutId);
@@ -694,30 +680,49 @@ const SeeAllModal: React.FC<{
   );
 };
 
-// Payment Modal Component
+// Payment Modal Component - FIXED VERSION
 const PaymentModal: React.FC<{
   movie: Movie;
   onClose: () => void;
   onPaymentSuccess: () => void;
 }> = ({ movie, onClose, onPaymentSuccess }) => {
-  const { processPesapalPayment, handlePesapalRedirect, refreshPaymentStatus } = usePaymentService();
+  const { processIntasendPayment, refreshPaymentStatus } = usePaymentService();
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [showRedirect, setShowRedirect] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [pollingActive, setPollingActive] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      countdownRef.current = setTimeout(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+    } else if (countdown === 0 && pollingActive) {
+      setPollingActive(false);
+      setError('Payment verification timed out. If you completed payment, please refresh.');
+    }
+
+    return () => {
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
+    };
+  }, [countdown, pollingActive]);
 
   const handlePayment = async () => {
     if (!phoneNumber.trim()) {
@@ -729,7 +734,7 @@ const PaymentModal: React.FC<{
     setError('');
 
     try {
-      const result = await processPesapalPayment(
+      const result = await processIntasendPayment(
         movie.id,
         phoneNumber
       );
@@ -740,18 +745,15 @@ const PaymentModal: React.FC<{
           setTimeout(() => {
             onPaymentSuccess();
           }, 1500);
-        } else if (result.data?.redirectUrl) {
-          setRedirectUrl(result.data.redirectUrl);
-          setPaymentReference(result.data.reference || '');
-          setShowRedirect(true);
+        } else if (result.data?.reference) {
+          // STK Push sent successfully
           setIsProcessing(false);
+          setPollingActive(true);
+          setCountdown(60);
+          pollPaymentStatus(result.data.reference, movie.id);
         } else {
-          setError('Please check your phone and enter your M-Pesa PIN.');
+          setError('Payment initiation failed. Please try again.');
           setIsProcessing(false);
-          
-          if (result.data?.reference) {
-            pollPaymentStatus(result.data.reference, movie.id);
-          }
         }
       } else {
         setError(result.message || 'Payment failed. Please try again.');
@@ -764,11 +766,8 @@ const PaymentModal: React.FC<{
   };
 
   const pollPaymentStatus = (reference: string, movieId: string) => {
-    if (pollingActive) return;
-    
-    setPollingActive(true);
     let attempts = 0;
-    const maxAttempts = 20;
+    const maxAttempts = 12;
     
     pollingRef.current = setInterval(async () => {
       attempts++;
@@ -780,7 +779,11 @@ const PaymentModal: React.FC<{
           if (pollingRef.current) {
             clearInterval(pollingRef.current);
           }
+          if (countdownRef.current) {
+            clearTimeout(countdownRef.current);
+          }
           setPollingActive(false);
+          setCountdown(0);
           setShowSuccess(true);
           
           setTimeout(() => {
@@ -791,8 +794,8 @@ const PaymentModal: React.FC<{
             clearInterval(pollingRef.current);
           }
           setPollingActive(false);
+          setCountdown(0);
           setError('Payment verification timeout. Please check your purchase history or try again.');
-          setIsProcessing(false);
         }
       } catch (error) {
         console.error('Error polling payment status:', error);
@@ -801,34 +804,10 @@ const PaymentModal: React.FC<{
             clearInterval(pollingRef.current);
           }
           setPollingActive(false);
-          setIsProcessing(false);
+          setCountdown(0);
         }
       }
-    }, 6000);
-  };
-
-  const handleRedirect = async () => {
-    if (!redirectUrl) return;
-    
-    try {
-      if (paymentReference) {
-        const pendingPayment = {
-          reference: paymentReference,
-          movieId: movie.id,
-          timestamp: Date.now()
-        };
-        const paymentData = JSON.stringify(pendingPayment);
-        document.cookie = `pendingPayment=${paymentData}; path=/; max-age=3600`;
-      }
-      
-      const success = await handlePesapalRedirect(redirectUrl, movie.id);
-      
-      if (!success) {
-        setError('Failed to open payment page. Please try again.');
-      }
-    } catch (error) {
-      setError('Failed to open payment page. Please try again.');
-    }
+    }, 5000);
   };
 
   if (showSuccess) {
@@ -840,7 +819,7 @@ const PaymentModal: React.FC<{
               <Check size={32} className="text-white" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold mb-2">Payment Successful!</h2>
+          <h2 className="text-2xl font-bold mb-2">Payment Successful! 🎉</h2>
           <p className="text-gray-300 mb-6">
             You can now watch <span className="font-semibold text-white">{movie.title}</span>
           </p>
@@ -850,48 +829,6 @@ const PaymentModal: React.FC<{
           >
             Watch Now
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (showRedirect) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full shadow-2xl">
-          <h2 className="text-2xl font-bold mb-4">Complete Payment</h2>
-          
-          <div className="mb-6">
-            <p className="text-gray-300 mb-4">
-              You will be redirected to Pesapal to complete your payment securely.
-            </p>
-            <div className="bg-gray-800 rounded p-4">
-              <p className="text-sm text-gray-400">Amount</p>
-              <p className="text-2xl font-bold mb-2">
-                {process.env.NEXT_PUBLIC_CURRENCY || 'KES'} {process.env.NEXT_PUBLIC_WEB_MOVIE_PRICE || '20'}
-              </p>
-              <p className="text-sm text-gray-400">Movie</p>
-              <p className="font-semibold">{movie.title}</p>
-            </div>
-            <p className="text-xs text-gray-400 mt-4">
-              After completing payment, you&apos;ll be redirected back automatically.
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleRedirect}
-              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors"
-            >
-              Continue to Payment
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -927,9 +864,9 @@ const PaymentModal: React.FC<{
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded p-4 mb-4">
-          <p className="text-sm text-gray-400">Price</p>
-          <p className="text-2xl font-bold">{process.env.NEXT_PUBLIC_CURRENCY || 'KES'} {process.env.NEXT_PUBLIC_WEB_MOVIE_PRICE || '20'}</p>
+        <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-4 mb-4">
+          <p className="text-sm text-white/80">Price</p>
+          <p className="text-3xl font-bold text-white">KES 10</p>
         </div>
 
         <div className="mb-4">
@@ -940,25 +877,35 @@ const PaymentModal: React.FC<{
             type="tel"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
-            placeholder="0712345678 or 254712345678"
-            className="w-full px-4 py-2 bg-gray-800 rounded border border-gray-700 focus:border-red-600 focus:outline-none"
+            placeholder="07XX XXX XXX"
+            className="w-full px-4 py-3 bg-gray-800 rounded-lg border border-gray-700 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/50"
             disabled={isProcessing || pollingActive}
           />
-          <p className="text-xs text-gray-400 mt-1">
-            Enter your Kenyan M-Pesa mobile number
+          <p className="text-xs text-gray-400 mt-2 flex items-center">
+            <span className="mr-1">📱</span>
+            You will receive an M-Pesa prompt on your phone
           </p>
         </div>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-900/50 border border-red-600 rounded text-sm">
+          <div className="mb-4 p-3 bg-red-900/50 border border-red-600 rounded-lg text-sm">
             {error}
           </div>
         )}
 
         {pollingActive && (
-          <div className="mb-4 p-3 bg-blue-900/50 border border-blue-600 rounded text-sm flex items-center">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-3"></div>
-            <span>Waiting for payment confirmation...</span>
+          <div className="mb-4 p-4 bg-blue-900/50 border border-blue-600 rounded-lg">
+            <div className="flex items-center mb-2">
+              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-3"></div>
+              <span className="text-sm font-semibold">Check your phone 📱</span>
+            </div>
+            <p className="text-xs text-gray-300">Enter your M-Pesa PIN when prompted</p>
+            <div className="mt-3 text-center">
+              <p className="text-2xl font-bold text-blue-400">
+                {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Auto-checking payment status...</p>
+            </div>
           </div>
         )}
 
@@ -966,14 +913,14 @@ const PaymentModal: React.FC<{
           <button
             onClick={onClose}
             disabled={isProcessing || pollingActive}
-            className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={handlePayment}
             disabled={isProcessing || pollingActive || !phoneNumber.trim()}
-            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-bold"
           >
             {isProcessing || pollingActive ? (
               <>
@@ -981,10 +928,14 @@ const PaymentModal: React.FC<{
                 {pollingActive ? 'Verifying...' : 'Processing...'}
               </>
             ) : (
-              'Pay Now'
+              'LIPA NA MPESA 10 KSH 🔥'
             )}
           </button>
         </div>
+
+        <p className="text-xs text-gray-500 text-center mt-4">
+          Secure payment powered by Intasend • M-Pesa
+        </p>
       </div>
     </div>
   );
@@ -1010,7 +961,6 @@ export default function MoviesPage() {
   const [showPaymentModal, setShowPaymentModal] = useState(false);
   const [selectedMovie, setSelectedMovie] = useState<Movie | null>(null);
 
-  // Filter movies by genre
   const filterMoviesByGenre = useCallback((movies: Movie[], genre: string) => {
     if (genre === 'All') return movies;
     return movies.filter(movie => 
@@ -1018,7 +968,6 @@ export default function MoviesPage() {
     );
   }, []);
 
-  // Update sections when genre filter changes
   useEffect(() => {
     if (moviesSections.length === 0) return;
 
@@ -1030,7 +979,6 @@ export default function MoviesPage() {
     setFilteredSections(filtered);
   }, [moviesSections, selectedGenre, filterMoviesByGenre]);
 
-  // Load payment status for movies
   const loadPaymentStatus = useCallback(async (movies: Movie[]) => {
     if (!paymentService || !isInitialized) return movies;
 
@@ -1038,7 +986,6 @@ export default function MoviesPage() {
       const userPaidMovies = await paymentService.getCurrentUserPurchasedMovieIds();
       
       return movies.map(movie => {
-        // Mark movies as premium or paid based on payment status
         if (movie.isPremium) {
           if (userPaidMovies.includes(movie.id)) {
             return { ...movie, paymentStatus: 'paid' as const };
@@ -1046,7 +993,7 @@ export default function MoviesPage() {
             return { ...movie, paymentStatus: 'premium' as const };
           }
         }
-        return { ...movie, paymentStatus: undefined }; // Ensure paymentStatus is defined
+        return { ...movie, paymentStatus: undefined };
       });
     } catch (error) {
       console.error('Error loading payment status:', error);
@@ -1054,21 +1001,17 @@ export default function MoviesPage() {
     }
   }, [isInitialized, paymentService]);
 
-  // Load all data
   useEffect(() => {
     async function loadData() {
       if (!isInitialized) return;
       
       setIsLoading(true);
       try {
-        // Get all movies
-        const movies: Movie[] = await service.getAllMovies({ limit: 1000 });
+        const movies: Movie[] = await service.getAllMovies();
         
-        // Load payment status for movies
         const moviesWithPaymentStatus = await loadPaymentStatus(movies);
         setAllMovies(moviesWithPaymentStatus);
 
-        // Extract unique genres
         const genresSet = new Set<string>();
         moviesWithPaymentStatus.forEach(movie => {
           movie.genres?.forEach(genre => genresSet.add(genre));
@@ -1076,12 +1019,10 @@ export default function MoviesPage() {
         const genres = ['All', ...Array.from(genresSet).sort()];
         setAvailableGenres(genres);
 
-        // Get featured movies for banner
         const featured = moviesWithPaymentStatus.filter(movie => movie.isFeatured);
         if (featured.length > 0) {
           setFeaturedMovies(featured);
         } else {
-          // Fallback to random high-rated movies if no featured movies
           const highRated = moviesWithPaymentStatus
             .filter(movie => movie.rating && movie.rating >= 7.5)
             .sort(() => 0.5 - Math.random())
@@ -1089,7 +1030,6 @@ export default function MoviesPage() {
           setFeaturedMovies(highRated.length > 0 ? highRated : moviesWithPaymentStatus.slice(0, 5));
         }
 
-        // Create movie sections
         const sections: MoviesSection[] = [
           {
             id: 'all_movies',
@@ -1166,7 +1106,6 @@ export default function MoviesPage() {
           }
         ];
 
-        // Filter out empty sections
         const validSections = sections.filter(section => section.movies.length > 0);
         setMoviesSections(validSections);
 
@@ -1181,21 +1120,18 @@ export default function MoviesPage() {
   }, [isInitialized, service, loadPaymentStatus]);
 
   const handlePlayMovie = async (movie: Movie) => {
-    // Check if user is authenticated
     const authState = authService.getState();
     if (!authState.isAuthenticated) {
       router.push('/auth?redirect=/movies');
       return;
     }
 
-    // Check if premium and not paid
     if (movie.isPremium && movie.paymentStatus === 'premium') {
       setSelectedMovie(movie);
       setShowPaymentModal(true);
       return;
     }
 
-    // Navigate to play page
     router.push(`/play?id=${movie.id}`);
   };
   
@@ -1212,7 +1148,6 @@ export default function MoviesPage() {
   };
 
   const handleToggleWishlist = async (movieId: string) => {
-    // Check if user is authenticated
     const authState = authService.getState();
     if (!authState.isAuthenticated) {
       router.push('/auth?redirect=/movies');
@@ -1222,7 +1157,6 @@ export default function MoviesPage() {
     try {
       await service.toggleWishlist(movieId);
       
-      // Update all movie arrays
       setFeaturedMovies(prev => prev.map(m => m.id === movieId ? { ...m, isWishlisted: !m.isWishlisted } : m));
       setAllMovies(prev => prev.map(m => m.id === movieId ? { ...m, isWishlisted: !m.isWishlisted } : m));
       setMoviesSections(prev => prev.map(section => ({
@@ -1242,12 +1176,10 @@ export default function MoviesPage() {
     if (!selectedMovie) return;
     
     try {
-      // Refresh movie data
-      const updatedMovie = await service.getMovieById(selectedMovie.id);
+      await service.getMovieById(selectedMovie.id);
       
-      // Update movie in all collections with payment status
       const updateMovieInCollection = (collection: Movie[]): Movie[] => {
-        return collection.map(m => m.id === selectedMovie.id ? { ...m, paymentStatus: 'paid' } : m);
+        return collection.map(m => m.id === selectedMovie.id ? { ...m, paymentStatus: 'paid' as const } : m);
       };
       
       setFeaturedMovies(updateMovieInCollection(featuredMovies));
@@ -1261,13 +1193,11 @@ export default function MoviesPage() {
         movies: updateMovieInCollection(section.movies)
       })));
       
-      // Close modal and navigate to play
       setShowPaymentModal(false);
       setSelectedMovie(null);
       router.push(`/play?id=${selectedMovie.id}`);
     } catch (error) {
       console.error('Error updating movie after payment:', error);
-      // Navigate to play anyway
       router.push(`/play?id=${selectedMovie.id}`);
     }
   };
@@ -1276,23 +1206,23 @@ export default function MoviesPage() {
     return (
       <LayoutController>
       <Head>
-      <title>Dashboard – DJ Afro Movies | Trending & New Releases</title>
+      <title>Movies – DJ Afro Movies | Browse All Movies</title>
       <meta
         name="description"
         content="Browse DJ Afro trending movies, new releases, and genre-based collections. Continue watching your favorites or add to wishlist anytime."
       />
       <meta
         name="keywords"
-        content="DJ Afro movies dashboard, trending DJ Afro movies, new releases, African movies online"
+        content="DJ Afro movies, trending DJ Afro movies, new releases, African movies online"
       />
       <meta name="robots" content="index, follow" />
-      <meta property="og:title" content="Dashboard – DJ Afro Movies" />
+      <meta property="og:title" content="Movies – DJ Afro Movies" />
       <meta
         property="og:description"
         content="Watch trending DJ Afro movies, new releases, and explore genres on DJAfroMovies."
       />
       <meta property="og:image" content="/og-image.jpg" />
-      <meta property="og:url" content="https://djafromovies.vercel.app" />
+      <meta property="og:url" content="https://djafromovies.vercel.app/movies" />
       <meta name="twitter:card" content="summary_large_image" />
     </Head>
         <div className="min-h-screen bg-black flex items-center justify-center">
@@ -1311,7 +1241,6 @@ export default function MoviesPage() {
   return (
     <LayoutController>
       <div className="min-h-screen bg-black text-white">
-        {/* Hero Banner */}
         <div className="mb-12">
           <MovieHeroBanner 
             movies={featuredMovies}
@@ -1320,7 +1249,6 @@ export default function MoviesPage() {
           />
         </div>
 
-        {/* Responsive Genre Filter */}
         <ResponsiveGenreSelector
           genres={availableGenres}
           selectedGenre={selectedGenre}
@@ -1328,7 +1256,6 @@ export default function MoviesPage() {
           movieCount={totalMovieCount}
         />
 
-        {/* Movies Sections */}
         <div className="px-4 md:px-6 lg:px-8 space-y-16">
           {(filteredSections.length > 0 ? filteredSections : moviesSections).map((section) => (
             <AutoScrollSection
@@ -1357,7 +1284,6 @@ export default function MoviesPage() {
           )}
         </div>
 
-        {/* See All Modal */}
         <SeeAllModal
           isOpen={seeAllModal.isOpen}
           onClose={() => setSeeAllModal({ isOpen: false, movies: [], title: '' })}
@@ -1367,7 +1293,6 @@ export default function MoviesPage() {
           onToggleWishlist={handleToggleWishlist}
         />
 
-        {/* Payment Modal */}
         {showPaymentModal && selectedMovie && (
           <PaymentModal
             movie={selectedMovie}

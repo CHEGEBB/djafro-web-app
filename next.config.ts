@@ -5,6 +5,12 @@ const nextConfig: NextConfig = {
     remotePatterns: [
       {
         protocol: 'https',
+        hostname: 'fra.cloud.appwrite.io',
+        port: '',
+        pathname: '/v1/storage/**',
+      },
+      {
+        protocol: 'https',
         hostname: 'cloud.appwrite.io',
         port: '',
         pathname: '/**',
@@ -66,6 +72,18 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'resizing.flixster.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'encrypted-tbn3.gstatic.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: '*.gstatic.com',
         port: '',
         pathname: '/**',
       },

@@ -1,5 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/MovieRow.tsx - Complete with Payment Integration
+// components/MovieRow.tsx - Complete with Intasend Payment Integration
 'use client';
 
 import React, { useRef, useState, useEffect, useCallback } from 'react';
@@ -499,7 +499,7 @@ const MovieRow: React.FC<MovieRowProps> = ({
   );
 };
 
-// Payment Modal Component
+// Payment Modal Component - Intasend STK Push
 const PaymentModal: React.FC<{
   movie: any;
   paymentService: any;
@@ -510,20 +510,39 @@ const PaymentModal: React.FC<{
   const [phoneNumber, setPhoneNumber] = useState('');
   const [isProcessing, setIsProcessing] = useState(false);
   const [error, setError] = useState('');
-  const [showRedirect, setShowRedirect] = useState(false);
-  const [redirectUrl, setRedirectUrl] = useState('');
-  const [paymentReference, setPaymentReference] = useState('');
   const [showSuccess, setShowSuccess] = useState(false);
   const [pollingActive, setPollingActive] = useState(false);
+  const [countdown, setCountdown] = useState(0);
   const pollingRef = useRef<NodeJS.Timeout | null>(null);
+  const countdownRef = useRef<NodeJS.Timeout | null>(null);
 
   useEffect(() => {
     return () => {
       if (pollingRef.current) {
         clearInterval(pollingRef.current);
       }
+      if (countdownRef.current) {
+        clearInterval(countdownRef.current);
+      }
     };
   }, []);
+
+  useEffect(() => {
+    if (countdown > 0) {
+      countdownRef.current = setTimeout(() => {
+        setCountdown(prev => prev - 1);
+      }, 1000);
+    } else if (countdown === 0 && pollingActive) {
+      setPollingActive(false);
+      setError('Payment verification timed out. If you completed payment, please refresh.');
+    }
+
+    return () => {
+      if (countdownRef.current) {
+        clearTimeout(countdownRef.current);
+      }
+    };
+  }, [countdown, pollingActive]);
 
   const handlePayment = async () => {
     if (!phoneNumber.trim()) {
@@ -535,7 +554,7 @@ const PaymentModal: React.FC<{
     setError('');
 
     try {
-      const result = await paymentService.processPesapalPayment(
+      const result = await paymentService.processIntasendPayment(
         movie.originalId || movie.id,
         phoneNumber
       );
@@ -546,16 +565,13 @@ const PaymentModal: React.FC<{
           setTimeout(() => {
             onPaymentSuccess();
           }, 1500);
-        } else if (result.data?.redirectUrl) {
-          setRedirectUrl(result.data.redirectUrl);
-          setPaymentReference(result.data.reference || '');
-          setShowRedirect(true);
-          setIsProcessing(false);
         } else {
-          setError('Please check your phone and enter your M-Pesa PIN.');
+          setError('');
           setIsProcessing(false);
           
           if (result.data?.reference) {
+            setPollingActive(true);
+            setCountdown(60);
             pollPaymentStatus(result.data.reference, movie.originalId || movie.id);
           }
         }
@@ -570,11 +586,8 @@ const PaymentModal: React.FC<{
   };
 
   const pollPaymentStatus = (reference: string, movieId: string) => {
-    if (pollingActive) return;
-    
-    setPollingActive(true);
     let attempts = 0;
-    const maxAttempts = 20;
+    const maxAttempts = 12;
     
     pollingRef.current = setInterval(async () => {
       attempts++;
@@ -586,7 +599,11 @@ const PaymentModal: React.FC<{
           if (pollingRef.current) {
             clearInterval(pollingRef.current);
           }
+          if (countdownRef.current) {
+            clearTimeout(countdownRef.current);
+          }
           setPollingActive(false);
+          setCountdown(0);
           setShowSuccess(true);
           
           if (movieService?.getMovieById) {
@@ -601,6 +618,7 @@ const PaymentModal: React.FC<{
             clearInterval(pollingRef.current);
           }
           setPollingActive(false);
+          setCountdown(0);
           setError('Payment verification timeout. Please check your purchase history or try again.');
           setIsProcessing(false);
         }
@@ -611,34 +629,11 @@ const PaymentModal: React.FC<{
             clearInterval(pollingRef.current);
           }
           setPollingActive(false);
+          setCountdown(0);
           setIsProcessing(false);
         }
       }
-    }, 6000);
-  };
-
-  const handleRedirect = async () => {
-    if (!redirectUrl) return;
-    
-    try {
-      if (paymentReference) {
-        const pendingPayment = {
-          reference: paymentReference,
-          movieId: movie.originalId || movie.id,
-          timestamp: Date.now()
-        };
-        const paymentData = JSON.stringify(pendingPayment);
-        document.cookie = `pendingPayment=${paymentData}; path=/; max-age=3600`;
-      }
-      
-      const success = await paymentService.handlePesapalRedirect(redirectUrl, movie.originalId || movie.id);
-      
-      if (!success) {
-        setError('Failed to open payment page. Please try again.');
-      }
-    } catch (error) {
-      setError('Failed to open payment page. Please try again.');
-    }
+    }, 5000);
   };
 
   if (showSuccess) {
@@ -650,7 +645,7 @@ const PaymentModal: React.FC<{
               <Check size={32} className="text-white" />
             </div>
           </div>
-          <h2 className="text-2xl font-bold mb-2">Payment Successful!</h2>
+          <h2 className="text-2xl font-bold mb-2">Payment Successful! 🎉</h2>
           <p className="text-gray-300 mb-6">
             You can now watch <span className="font-semibold text-white">{movie.title}</span>
           </p>
@@ -660,48 +655,6 @@ const PaymentModal: React.FC<{
           >
             Watch Now
           </button>
-        </div>
-      </div>
-    );
-  }
-
-  if (showRedirect) {
-    return (
-      <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-        <div className="bg-gray-900 rounded-lg p-6 max-w-md w-full shadow-2xl">
-          <h2 className="text-2xl font-bold mb-4">Complete Payment</h2>
-          
-          <div className="mb-6">
-            <p className="text-gray-300 mb-4">
-              You will be redirected to Pesapal to complete your payment securely.
-            </p>
-            <div className="bg-gray-800 rounded p-4">
-              <p className="text-sm text-gray-400">Amount</p>
-              <p className="text-2xl font-bold mb-2">
-                {process.env.NEXT_PUBLIC_CURRENCY || 'KES'} {process.env.NEXT_PUBLIC_WEB_MOVIE_PRICE || '20'}
-              </p>
-              <p className="text-sm text-gray-400">Movie</p>
-              <p className="font-semibold">{movie.title}</p>
-            </div>
-            <p className="text-xs text-gray-400 mt-4">
-              After completing payment, you&apos;ll be redirected back automatically.
-            </p>
-          </div>
-
-          <div className="flex gap-3">
-            <button
-              onClick={onClose}
-              className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded transition-colors"
-            >
-              Cancel
-            </button>
-            <button
-              onClick={handleRedirect}
-              className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors"
-            >
-              Continue to Payment
-            </button>
-          </div>
         </div>
       </div>
     );
@@ -737,9 +690,9 @@ const PaymentModal: React.FC<{
           </div>
         </div>
 
-        <div className="bg-gray-800 rounded p-4 mb-4">
-          <p className="text-sm text-gray-400">Price</p>
-          <p className="text-2xl font-bold">{process.env.NEXT_PUBLIC_CURRENCY || 'KES'} {process.env.NEXT_PUBLIC_WEB_MOVIE_PRICE || '20'}</p>
+        <div className="bg-gradient-to-r from-red-600 to-red-700 rounded-lg p-4 mb-4">
+          <p className="text-sm text-white/80">Price</p>
+          <p className="text-3xl font-bold text-white">KES {process.env.NEXT_PUBLIC_MOVIE_PRICE || '10'}</p>
         </div>
 
         <div className="mb-4">
@@ -750,25 +703,35 @@ const PaymentModal: React.FC<{
             type="tel"
             value={phoneNumber}
             onChange={(e) => setPhoneNumber(e.target.value)}
-            placeholder="0712345678 or 254712345678"
-            className="w-full px-4 py-2 bg-gray-800 rounded border border-gray-700 focus:border-red-600 focus:outline-none"
+            placeholder="07XX XXX XXX"
+            className="w-full px-4 py-3 bg-gray-800 rounded-lg border border-gray-700 focus:border-red-600 focus:outline-none focus:ring-2 focus:ring-red-600/50"
             disabled={isProcessing || pollingActive}
           />
-          <p className="text-xs text-gray-400 mt-1">
-            Enter your Kenyan M-Pesa mobile number
+          <p className="text-xs text-gray-400 mt-2 flex items-center">
+            <span className="mr-1">📱</span>
+            You will receive an M-Pesa prompt on your phone
           </p>
         </div>
         
         {error && (
-          <div className="mb-4 p-3 bg-red-900/50 border border-red-600 rounded text-sm">
+          <div className="mb-4 p-3 bg-red-900/50 border border-red-600 rounded-lg text-sm">
             {error}
           </div>
         )}
 
         {pollingActive && (
-          <div className="mb-4 p-3 bg-blue-900/50 border border-blue-600 rounded text-sm flex items-center">
-            <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-3"></div>
-            <span>Waiting for payment confirmation...</span>
+          <div className="mb-4 p-4 bg-blue-900/50 border border-blue-600 rounded-lg">
+            <div className="flex items-center mb-2">
+              <div className="w-4 h-4 border-2 border-blue-400 border-t-transparent rounded-full animate-spin mr-3"></div>
+              <span className="text-sm font-semibold">Check your phone 📱</span>
+            </div>
+            <p className="text-xs text-gray-300">Enter your M-Pesa PIN when prompted</p>
+            <div className="mt-3 text-center">
+              <p className="text-2xl font-bold text-blue-400">
+                {Math.floor(countdown / 60)}:{(countdown % 60).toString().padStart(2, '0')}
+              </p>
+              <p className="text-xs text-gray-400 mt-1">Auto-checking payment status...</p>
+            </div>
           </div>
         )}
 
@@ -776,14 +739,14 @@ const PaymentModal: React.FC<{
           <button
             onClick={onClose}
             disabled={isProcessing || pollingActive}
-            className="flex-1 px-4 py-2 bg-gray-800 hover:bg-gray-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            className="flex-1 px-4 py-3 bg-gray-800 hover:bg-gray-700 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
           >
             Cancel
           </button>
           <button
             onClick={handlePayment}
             disabled={isProcessing || pollingActive || !phoneNumber.trim()}
-            className="flex-1 px-4 py-2 bg-red-600 hover:bg-red-700 rounded transition-colors disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center"
+            className="flex-1 px-4 py-3 bg-gradient-to-r from-red-600 to-red-700 hover:from-red-500 hover:to-red-600 rounded-lg transition-all disabled:opacity-50 disabled:cursor-not-allowed flex items-center justify-center font-bold"
           >
             {isProcessing || pollingActive ? (
               <>
@@ -791,10 +754,14 @@ const PaymentModal: React.FC<{
                 {pollingActive ? 'Verifying...' : 'Processing...'}
               </>
             ) : (
-              'Pay Now'
+              `LIPA NA MPESA ${process.env.NEXT_PUBLIC_MOVIE_PRICE || '10'} KSH 🔥`
             )}
           </button>
         </div>
+
+        <p className="text-xs text-gray-500 text-center mt-4">
+          Secure payment powered by Intasend • M-Pesa
+        </p>
       </div>
     </div>
   );
